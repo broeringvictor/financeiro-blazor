@@ -16,6 +16,10 @@ namespace WebApp.Models;
 /// </remarks>
 public class Transaction : BaseModel
 {
+    /// <summary>Id do usuário dono da transação (FK para AspNetUsers / IdentityUser.Id).</summary>
+    [Required]
+    public string UserId { get; private set; } = string.Empty;
+
     /// <summary>Natureza da transação: receita, despesa ou transferência.</summary>
     [DisplayName("Tipo de transação")]
     [EnumDataType(typeof(ETransactionTypes), ErrorMessage = "Tipo de transação inválido.")]
@@ -44,9 +48,13 @@ public class Transaction : BaseModel
     [Range(typeof(decimal), "0.01", "10000000", ErrorMessage = "O valor deve ser positivo e no máximo 10 milhões.")]
     public decimal Amount { get; private set; }
 
-    /// <summary>Cria uma nova transação.</summary>
-    public Transaction(ETransactionTypes type, string title, string? description, decimal amount)
+    /// <summary>Construtor usado pelo Entity Framework para materializar a entidade.</summary>
+    private Transaction() { }
+
+    /// <summary>Cria uma nova transação para o usuário informado.</summary>
+    public Transaction(string userId, ETransactionTypes type, string title, string? description, decimal amount)
     {
+        UserId = userId;
         Type = type;
         Title = title;
         Description = description;
@@ -56,12 +64,14 @@ public class Transaction : BaseModel
     /// <summary>Reconstrói uma transação existente para edição.</summary>
     public Transaction(
         Guid id,
+        string userId,
         DateTime createdAt,
         ETransactionTypes? type = null,
         string? title = null,
         string? description = null,
         decimal? amount = null)
     {
+        UserId = userId;
         ConfigureForEdit(id, createdAt);
         Edit(type, title, description, amount);
     }

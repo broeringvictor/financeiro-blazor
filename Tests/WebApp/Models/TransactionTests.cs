@@ -5,13 +5,16 @@ namespace Tests.WebApp.Models;
 
 public class TransactionTests
 {
+    private const string UserId = "user-123";
+
     // ---------- Create ----------
 
     [Fact]
     public void Create_DeveDefinirTodosOsValores()
     {
-        var transaction = new Transaction(ETransactionTypes.Expense, "Aluguel", "Pagamento mensal", 1500m);
+        var transaction = new Transaction(UserId, ETransactionTypes.Expense, "Aluguel", "Pagamento mensal", 1500m);
 
+        Assert.Equal(UserId, transaction.UserId);
         Assert.Equal(ETransactionTypes.Expense, transaction.Type);
         Assert.Equal("Aluguel", transaction.Title);
         Assert.Equal("Pagamento mensal", transaction.Description);
@@ -23,7 +26,7 @@ public class TransactionTests
     {
         var antes = DateTime.UtcNow;
 
-        var transaction = new Transaction(ETransactionTypes.Income, "Salário", null, 5000m);
+        var transaction = new Transaction(UserId, ETransactionTypes.Income, "Salário", null, 5000m);
 
         Assert.NotEqual(Guid.Empty, transaction.Id);
         Assert.InRange(transaction.CreatedAt, antes, DateTime.UtcNow);
@@ -34,7 +37,7 @@ public class TransactionTests
     [Fact]
     public void Create_DeveRemoverEspacosDoTitulo()
     {
-        var transaction = new Transaction(ETransactionTypes.Income, "  Salário  ", null, 5000m);
+        var transaction = new Transaction(UserId, ETransactionTypes.Income, "  Salário  ", null, 5000m);
 
         Assert.Equal("Salário", transaction.Title);
     }
@@ -45,7 +48,7 @@ public class TransactionTests
     [InlineData(null)]
     public void Create_DeveNormalizarDescricaoVaziaParaNull(string? descricao)
     {
-        var transaction = new Transaction(ETransactionTypes.Income, "Salário", descricao, 5000m);
+        var transaction = new Transaction(UserId, ETransactionTypes.Income, "Salário", descricao, 5000m);
 
         Assert.Null(transaction.Description);
     }
@@ -55,6 +58,7 @@ public class TransactionTests
     private static Transaction CriarParaEdicao() =>
         new(
             id: Guid.CreateVersion7(),
+            userId: UserId,
             createdAt: DateTime.UtcNow.AddDays(-1),
             type: ETransactionTypes.Expense,
             title: "Original",
@@ -141,9 +145,10 @@ public class TransactionTests
         var id = Guid.CreateVersion7();
         var createdAt = DateTime.UtcNow.AddDays(-5);
 
-        var transaction = new Transaction(id, createdAt, title: "Qualquer");
+        var transaction = new Transaction(id, UserId, createdAt, title: "Qualquer");
 
         Assert.Equal(id, transaction.Id);
+        Assert.Equal(UserId, transaction.UserId);
         Assert.Equal(createdAt, transaction.CreatedAt);
     }
 }
