@@ -7,6 +7,7 @@ public class BaseModel
     public DateTime UpdatedAt { get; protected set; } = DateTime.UtcNow;
     public DateTime? DeletedAt { get; protected set; }
 
+    // Para testes unitários.
     protected void ConfigureForEdit(Guid id, DateTime createdAt)
     {
         Id = id;

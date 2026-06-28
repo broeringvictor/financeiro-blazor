@@ -3,3 +3,8 @@ obj/
 /packages/
 riderModule.iml
 /_ReSharper.Caches/
+
+# Banco SQLite local de desenvolvimento
+app.db
+app.db-shm
+app.db-wal

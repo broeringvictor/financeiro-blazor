@@ -1,0 +1,49 @@
+@using WebApp.Extensions
+@using WebApp.Models.Enums
+
+<EditForm Model="_model" OnValidSubmit="HandleValidSubmit">
+    <DataAnnotationsValidator />
+
+    <MudStack Spacing="4">
+        <EnumSelect TEnum="ETransactionTypes"
+                    Value="_model.Type"
+                    ValueChanged="OnTypeChanged"
+                    Label="Tipo de transação" />
+
+        <MudSelect T="ETransactionCategory"
+                   Value="_model.Category"
+                   ValueChanged="@(c => _model.Category = c)"
+                   Label="Categoria"
+                   ToStringFunc="@(c => c.GetDisplayName())">
+            @foreach (var category in TransactionCategories.For(_model.Type))
+            {
+                <MudSelectItem Value="category">@category.GetDisplayName()</MudSelectItem>
+            }
+        </MudSelect>
+
+        <MudTextField @bind-Value="_model.Title"
+                      For="@(() => _model.Title)"
+                      Label="Título" />
+
+        <MudTextField @bind-Value="_model.Description"
+                      For="@(() => _model.Description)"
+                      Label="Descrição"
+                      Lines="3" />
+
+        <MudNumericField @bind-Value="_model.Amount"
+                         For="@(() => _model.Amount)"
+                         Label="Valor"
+                         Format="N2"
+                         Min="0.01m" />
+
+        <MudStack Row Justify="Justify.FlexEnd" Spacing="2">
+            @if (OnCancel.HasDelegate)
+            {
+                <MudButton Variant="Variant.Text" OnClick="OnCancel">Cancelar</MudButton>
+            }
+            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary">
+                @(IsEdit ? "Salvar" : "Criar")
+            </MudButton>
+        </MudStack>
+    </MudStack>
+</EditForm>

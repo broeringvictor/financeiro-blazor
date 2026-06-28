@@ -1,0 +1,21 @@
+@typeparam TEnum where TEnum : struct, Enum
+@using WebApp.Extensions
+
+<MudSelect T="TEnum" Value="Value" ValueChanged="ValueChanged"
+           Label="@Label" ToStringFunc="@(v => v.GetDisplayName())">
+    @foreach (var item in Enum.GetValues<TEnum>())
+    {
+        <MudSelectItem Value="item">@item.GetDisplayName()</MudSelectItem>
+    }
+</MudSelect>
+
+@code {
+    /// <summary>Valor selecionado.</summary>
+    [Parameter] public TEnum Value { get; set; }
+
+    /// <summary>Disparado quando o valor muda (suporta @bind-Value).</summary>
+    [Parameter] public EventCallback<TEnum> ValueChanged { get; set; }
+
+    /// <summary>Rótulo exibido no campo.</summary>
+    [Parameter] public string? Label { get; set; }
+}

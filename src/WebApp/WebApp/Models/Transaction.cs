@@ -25,6 +25,11 @@ public class Transaction : BaseModel
     [EnumDataType(typeof(ETransactionTypes), ErrorMessage = "Tipo de transação inválido.")]
     public ETransactionTypes Type { get; private set; }
 
+    /// <summary>Subcategoria; precisa pertencer ao <see cref="Type"/> (ver <see cref="TransactionCategories"/>).</summary>
+    [DisplayName("Categoria")]
+    [EnumDataType(typeof(ETransactionCategory), ErrorMessage = "Categoria inválida.")]
+    public ETransactionCategory Category { get; private set; }
+
     /// <summary>Título (5–150 caracteres); espaços nas extremidades são removidos.</summary>
     [DisplayName("Título")]
     [Length(5, 150, ErrorMessage = "O título deve ter entre 5 e 150 caracteres.")]
@@ -52,10 +57,13 @@ public class Transaction : BaseModel
     private Transaction() { }
 
     /// <summary>Cria uma nova transação para o usuário informado.</summary>
-    public Transaction(string userId, ETransactionTypes type, string title, string? description, decimal amount)
+    public Transaction(string userId, ETransactionTypes type, ETransactionCategory category, string title, string? description, decimal amount)
     {
+        EnsureCategoryMatchesType(type, category);
+
         UserId = userId;
         Type = type;
+        Category = category;
         Title = title;
         Description = description;
         Amount = amount;
@@ -67,27 +75,38 @@ public class Transaction : BaseModel
         string userId,
         DateTime createdAt,
         ETransactionTypes? type = null,
+        ETransactionCategory? category = null,
         string? title = null,
         string? description = null,
         decimal? amount = null)
     {
         UserId = userId;
         ConfigureForEdit(id, createdAt);
-        Edit(type, title, description, amount);
+        Edit(type, category, title, description, amount);
     }
 
     /// <summary>Aplica apenas os campos informados; marca como atualizada se algo mudou.</summary>
     public void Edit(
         ETransactionTypes? type = null,
+        ETransactionCategory? category = null,
         string? title = null,
         string? description = null,
         decimal? amount = null)
     {
+        // Valida a combinação final (tipo/categoria) antes de qualquer mutação.
+        EnsureCategoryMatchesType(type ?? Type, category ?? Category);
+
         var hasChanges = false;
 
         if (type is { } newType && Type != newType)
         {
             Type = newType;
+            hasChanges = true;
+        }
+
+        if (category is { } newCategory && Category != newCategory)
+        {
+            Category = newCategory;
             hasChanges = true;
         }
 
@@ -112,6 +131,16 @@ public class Transaction : BaseModel
         if (hasChanges)
         {
             MarkAsUpdated();
+        }
+    }
+
+    /// <summary>Garante que a categoria pertence ao tipo; lança <see cref="ArgumentException"/> caso contrário.</summary>
+    private static void EnsureCategoryMatchesType(ETransactionTypes type, ETransactionCategory category)
+    {
+        if (!TransactionCategories.Belongs(type, category))
+        {
+            throw new ArgumentException(
+                $"A categoria '{category}' não pertence ao tipo '{type}'.", nameof(category));
         }
     }
 }

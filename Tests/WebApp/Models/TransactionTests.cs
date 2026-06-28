@@ -12,10 +12,12 @@ public class TransactionTests
     [Fact]
     public void Create_DeveDefinirTodosOsValores()
     {
-        var transaction = new Transaction(UserId, ETransactionTypes.Expense, "Aluguel", "Pagamento mensal", 1500m);
+        var transaction = new Transaction(
+            UserId, ETransactionTypes.Expense, ETransactionCategory.Rent, "Aluguel", "Pagamento mensal", 1500m);
 
         Assert.Equal(UserId, transaction.UserId);
         Assert.Equal(ETransactionTypes.Expense, transaction.Type);
+        Assert.Equal(ETransactionCategory.Rent, transaction.Category);
         Assert.Equal("Aluguel", transaction.Title);
         Assert.Equal("Pagamento mensal", transaction.Description);
         Assert.Equal(1500m, transaction.Amount);
@@ -26,7 +28,8 @@ public class TransactionTests
     {
         var antes = DateTime.UtcNow;
 
-        var transaction = new Transaction(UserId, ETransactionTypes.Income, "Salário", null, 5000m);
+        var transaction = new Transaction(
+            UserId, ETransactionTypes.Income, ETransactionCategory.Salary, "Salário", null, 5000m);
 
         Assert.NotEqual(Guid.Empty, transaction.Id);
         Assert.InRange(transaction.CreatedAt, antes, DateTime.UtcNow);
@@ -37,7 +40,8 @@ public class TransactionTests
     [Fact]
     public void Create_DeveRemoverEspacosDoTitulo()
     {
-        var transaction = new Transaction(UserId, ETransactionTypes.Income, "  Salário  ", null, 5000m);
+        var transaction = new Transaction(
+            UserId, ETransactionTypes.Income, ETransactionCategory.Salary, "  Salário  ", null, 5000m);
 
         Assert.Equal("Salário", transaction.Title);
     }
@@ -48,9 +52,20 @@ public class TransactionTests
     [InlineData(null)]
     public void Create_DeveNormalizarDescricaoVaziaParaNull(string? descricao)
     {
-        var transaction = new Transaction(UserId, ETransactionTypes.Income, "Salário", descricao, 5000m);
+        var transaction = new Transaction(
+            UserId, ETransactionTypes.Income, ETransactionCategory.Salary, "Salário", descricao, 5000m);
 
         Assert.Null(transaction.Description);
+    }
+
+    [Fact]
+    public void Create_ComCategoriaDeOutroTipo_DeveLancar()
+    {
+        // Salary é categoria de Income, não de Expense.
+        var ex = Assert.Throws<ArgumentException>(() => new Transaction(
+            UserId, ETransactionTypes.Expense, ETransactionCategory.Salary, "Aluguel", null, 100m));
+
+        Assert.Equal("category", ex.ParamName);
     }
 
     // ---------- Edit ----------
@@ -61,6 +76,7 @@ public class TransactionTests
             userId: UserId,
             createdAt: DateTime.UtcNow.AddDays(-1),
             type: ETransactionTypes.Expense,
+            category: ETransactionCategory.Groceries,
             title: "Original",
             description: "Descrição original",
             amount: 100m);
@@ -76,7 +92,37 @@ public class TransactionTests
         Assert.Equal(250m, transaction.Amount);
         // Não informados permanecem inalterados.
         Assert.Equal(ETransactionTypes.Expense, transaction.Type);
+        Assert.Equal(ETransactionCategory.Groceries, transaction.Category);
         Assert.Equal("Descrição original", transaction.Description);
+    }
+
+    [Fact]
+    public void Edit_DeveTrocarTipoECategoriaJuntos()
+    {
+        var transaction = CriarParaEdicao();
+
+        transaction.Edit(type: ETransactionTypes.Income, category: ETransactionCategory.Freelance);
+
+        Assert.Equal(ETransactionTypes.Income, transaction.Type);
+        Assert.Equal(ETransactionCategory.Freelance, transaction.Category);
+    }
+
+    [Fact]
+    public void Edit_NovaCategoriaIncompativelComOTipoAtual_DeveLancar()
+    {
+        var transaction = CriarParaEdicao(); // Expense
+
+        // Salary não pertence a Expense; não passar novo tipo.
+        Assert.Throws<ArgumentException>(() => transaction.Edit(category: ETransactionCategory.Salary));
+    }
+
+    [Fact]
+    public void Edit_NovoTipoSemNovaCategoria_DeveLancarSeCategoriaAtualNaoPertence()
+    {
+        var transaction = CriarParaEdicao(); // Expense + Groceries
+
+        // Trocar só o tipo deixaria Groceries inválido para Income.
+        Assert.Throws<ArgumentException>(() => transaction.Edit(type: ETransactionTypes.Income));
     }
 
     [Fact]
@@ -110,6 +156,7 @@ public class TransactionTests
 
         transaction.Edit(
             type: ETransactionTypes.Expense,
+            category: ETransactionCategory.Groceries,
             title: "Original",
             description: "Descrição original",
             amount: 100m);

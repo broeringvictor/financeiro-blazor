@@ -1,0 +1,24 @@
+@using WebApp.Models
+
+<MudDialog>
+    <DialogContent>
+        <TransactionForm Transaction="Transaction"
+                         UserId="UserId"
+                         OnSubmit="Submit"
+                         OnCancel="Cancel" />
+    </DialogContent>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>Transação a editar; <c>null</c> abre em modo criação.</summary>
+    [Parameter] public Transaction? Transaction { get; set; }
+
+    /// <summary>Dono da transação (modo criação).</summary>
+    [Parameter] public string UserId { get; set; } = string.Empty;
+
+    private void Submit(Transaction result) => MudDialog.Close(DialogResult.Ok(result));
+
+    private void Cancel() => MudDialog.Cancel();
+}
