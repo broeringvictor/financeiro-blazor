@@ -50,7 +50,9 @@ public class Transaction : BaseModel
 
     /// <summary>Valor monetário positivo (0,01 a 10 milhões).</summary>
     [DisplayName("Valor")]
-    [Range(typeof(decimal), "0.01", "10000000", ErrorMessage = "O valor deve ser positivo e no máximo 10 milhões.")]
+    [Range(typeof(decimal), "0.01", "10000000",
+        ParseLimitsInInvariantCulture = true,
+        ErrorMessage = "O valor deve ser positivo e no máximo 10 milhões.")]
     public decimal Amount { get; private set; }
 
     /// <summary>Construtor usado pelo Entity Framework para materializar a entidade.</summary>
@@ -59,6 +61,7 @@ public class Transaction : BaseModel
     /// <summary>Cria uma nova transação para o usuário informado.</summary>
     public Transaction(string userId, ETransactionTypes type, ETransactionCategory category, string title, string? description, decimal amount)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         EnsureCategoryMatchesType(type, category);
 
         UserId = userId;

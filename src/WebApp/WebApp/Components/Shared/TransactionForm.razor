@@ -1,7 +1,7 @@
 @using WebApp.Extensions
 @using WebApp.Models.Enums
 
-<EditForm Model="_model" OnValidSubmit="HandleValidSubmit">
+<EditForm Model="_model" FormName="transaction-form" OnValidSubmit="HandleValidSubmit">
     <DataAnnotationsValidator />
 
     <MudStack Spacing="4">

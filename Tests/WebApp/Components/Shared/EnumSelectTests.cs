@@ -71,7 +71,7 @@ public class EnumSelectTests : BunitContext, IAsyncLifetime
 #pragma warning restore MUD0012
 
         Assert.NotNull(toString);
-        Assert.Equal(esperado, toString!(value));
+        Assert.Equal(esperado, toString(value));
     }
 
     [Fact]

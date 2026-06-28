@@ -76,7 +76,9 @@ public partial class TransactionForm : ComponentBase
         [StringLength(500, ErrorMessage = "A descrição não pode ter mais de 500 caracteres.")]
         public string? Description { get; set; }
 
-        [Range(typeof(decimal), "0.01", "10000000", ErrorMessage = "O valor deve ser positivo e no máximo 10 milhões.")]
+        [Range(typeof(decimal), "0.01", "10000000",
+            ParseLimitsInInvariantCulture = true,
+            ErrorMessage = "O valor deve ser positivo e no máximo 10 milhões.")]
         public decimal Amount { get; set; } = 0.01m;
     }
 }

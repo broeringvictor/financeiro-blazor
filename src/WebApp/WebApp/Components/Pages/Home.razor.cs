@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 using WebApp.Components.Shared;
@@ -23,6 +24,12 @@ public partial class Home : ComponentBase
     {
         var userId = await GetUserIdAsync();
 
+        if (string.IsNullOrEmpty(userId))
+        {
+            Snackbar.Add("Você precisa estar autenticado para criar uma transação.", Severity.Warning);
+            return;
+        }
+
         var parameters = new DialogParameters<TransactionFormDialog>
         {
             { x => x.UserId, userId },
@@ -41,18 +48,27 @@ public partial class Home : ComponentBase
         if (result is { Canceled: false, Data: Transaction transaction })
         {
             await SalvarAsync(transaction);
-            Snackbar.Add($"Transação \"{transaction.Title}\" criada.", Severity.Success);
         }
     }
 
     private async Task SalvarAsync(Transaction transaction)
     {
-        // Escopo curto: o DbContext não deve viver junto com o circuito interativo.
-        await using var scope = ScopeFactory.CreateAsyncScope();
-        var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+        try
+        {
+            // Escopo curto: o DbContext não deve viver junto com o circuito interativo.
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        db.Transactions.Add(transaction);
-        await db.SaveChangesAsync();
+            db.Transactions.Add(transaction);
+            await db.SaveChangesAsync();
+
+            Snackbar.Add($"Transação \"{transaction.Title}\" criada.", Severity.Success);
+        }
+        catch (DbUpdateException)
+        {
+            // Evita derrubar o circuito; o caso típico é UserId sem usuário correspondente.
+            Snackbar.Add("Não foi possível salvar a transação.", Severity.Error);
+        }
     }
 
     private async Task<string> GetUserIdAsync()

@@ -58,6 +58,16 @@ public class TransactionTests
         Assert.Null(transaction.Description);
     }
 
+    [Theory]
+    [InlineData("")]
+    [InlineData("   ")]
+    [InlineData(null)]
+    public void Create_ComUserIdVazio_DeveLancar(string? userId)
+    {
+        Assert.ThrowsAny<ArgumentException>(() => new Transaction(
+            userId!, ETransactionTypes.Income, ETransactionCategory.Salary, "Salário", null, 5000m));
+    }
+
     [Fact]
     public void Create_ComCategoriaDeOutroTipo_DeveLancar()
     {

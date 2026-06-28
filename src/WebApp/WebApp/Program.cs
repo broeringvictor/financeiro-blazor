@@ -36,7 +36,8 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
-    options.SignIn.RequireConfirmedAccount = true;
+    // Em desenvolvimento não exigimos confirmação de e-mail (não há SMTP configurado).
+    options.SignIn.RequireConfirmedAccount = !builder.Environment.IsDevelopment();
     options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
@@ -46,6 +47,13 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
+
+// Cultura pt-BR fixa (separador decimal vírgula, R$, datas dd/MM) independente do locale do servidor.
+var supportedCultures = new[] { "pt-BR" };
+app.UseRequestLocalization(new RequestLocalizationOptions()
+    .SetDefaultCulture("pt-BR")
+    .AddSupportedCultures(supportedCultures)
+    .AddSupportedUICultures(supportedCultures));
 
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
