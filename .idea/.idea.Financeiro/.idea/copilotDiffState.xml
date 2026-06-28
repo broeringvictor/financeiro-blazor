@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CopilotDiffPersistence">
+    <option name="pendingDiffs">
+      <map>
+        <entry key="/BaseModel (snapshot).cs">
+          <value>
+            <PendingDiffInfo>
+              <option name="filePath" value="/BaseModel (snapshot).cs" />
+              <option name="originalContent" value="namespace WebApp.Models.Shared;&#10;&#10;public class BaseModel &#10;{&#10;    Guid Id { get; set; } = Guid.CreateVersion7();&#10;    DateTime CreatedAt { get; set; } = DateTime.UtcNow;&#10;    DateTime UpdatedAt { get; set; } = DateTime.UtcNow;&#10;    DateTime? DeletedAt { get; set; }&#10;    &#10;}" />
+              <option name="updatedContent" value="namespace WebApp.Models.Shared;&#10;&#10;public class BaseModel &#10;{&#10;    public Guid Id { get; protected set; } = Guid.CreateVersion7();&#10;    public DateTime CreatedAt { get; protected set; } = DateTime.UtcNow;&#10;    public DateTime UpdatedAt { get; protected set; } = DateTime.UtcNow;&#10;    public DateTime? DeletedAt { get; protected set; }&#10;&#10;    protected void ConfigureForEdit(Guid id, DateTime createdAt)&#10;    {&#10;        Id = id;&#10;        CreatedAt = createdAt;&#10;        UpdatedAt = DateTime.UtcNow;&#10;    }&#10;&#10;    protected void MarkAsUpdated()&#10;    {&#10;        UpdatedAt = DateTime.UtcNow;&#10;    }&#10;    &#10;}" />
+            </PendingDiffInfo>
+          </value>
+        </entry>
+      </map>
+    </option>
+  </component>
+</project>
