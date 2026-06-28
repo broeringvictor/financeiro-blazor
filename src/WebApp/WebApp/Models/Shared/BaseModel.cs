@@ -19,5 +19,11 @@ public class BaseModel
     {
         UpdatedAt = DateTime.UtcNow;
     }
-    
+
+    protected void MarkAsDeleted()
+    {
+        DeletedAt = DateTime.UtcNow;
+        UpdatedAt = DateTime.UtcNow;
+    }
+
 }

@@ -137,6 +137,9 @@ public class Transaction : BaseModel
         }
     }
 
+    /// <summary>Exclusão lógica: marca <see cref="BaseModel.DeletedAt"/> sem remover do banco.</summary>
+    public void Delete() => MarkAsDeleted();
+
     /// <summary>Garante que a categoria pertence ao tipo; lança <see cref="ArgumentException"/> caso contrário.</summary>
     private static void EnsureCategoryMatchesType(ETransactionTypes type, ETransactionCategory category)
     {

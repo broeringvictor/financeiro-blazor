@@ -196,6 +196,21 @@ public class TransactionTests
         Assert.Equal("Novo título", transaction.Title);
     }
 
+    // ---------- Delete ----------
+
+    [Fact]
+    public void Delete_DeveMarcarDeletedAt()
+    {
+        var transaction = CriarParaEdicao();
+        Assert.Null(transaction.DeletedAt);
+
+        var antes = DateTime.UtcNow;
+        transaction.Delete();
+
+        Assert.NotNull(transaction.DeletedAt);
+        Assert.InRange(transaction.DeletedAt!.Value, antes, DateTime.UtcNow);
+    }
+
     [Fact]
     public void Construtor_DeEdicao_DevePreservarIdECreatedAt()
     {

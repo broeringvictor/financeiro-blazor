@@ -1,0 +1,94 @@
+@using WebApp.Extensions
+@using WebApp.Models
+@using WebApp.Models.Enums
+
+<MudDataGrid @ref="_grid"
+             T="Transaction"
+             ServerData="LoadServerData"
+             SortMode="SortMode.Single"
+             Hover="true"
+             Dense="true"
+             Striped="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Transações</MudText>
+        <MudSpacer />
+        <MudStack Row="true" AlignItems="AlignItems.Center" Spacing="2">
+            <MudSelect T="ETransactionTypes?"
+                       Value="_typeFilter"
+                       ValueChanged="OnTypeFilterChanged"
+                       Label="Tipo"
+                       Clearable="true"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Style="min-width:150px">
+                @foreach (var type in Enum.GetValues<ETransactionTypes>())
+                {
+                    <MudSelectItem T="ETransactionTypes?" Value="type">@type.GetDisplayName()</MudSelectItem>
+                }
+            </MudSelect>
+            <MudSelect T="ETransactionCategory?"
+                       Value="_categoryFilter"
+                       ValueChanged="OnCategoryFilterChanged"
+                       Label="Categoria"
+                       Clearable="true"
+                       Variant="Variant.Outlined"
+                       Margin="Margin.Dense"
+                       Style="min-width:170px">
+                @foreach (var category in CategoriasDisponiveis())
+                {
+                    <MudSelectItem T="ETransactionCategory?" Value="category">@category.GetDisplayName()</MudSelectItem>
+                }
+            </MudSelect>
+            <MudTextField Value="_search"
+                          ValueChanged="@((string s) => OnSearchAsync(s))"
+                          Placeholder="Buscar por título ou descrição"
+                          Adornment="Adornment.Start"
+                          AdornmentIcon="@Icons.Material.Filled.Search"
+                          Immediate="true"
+                          DebounceInterval="300"
+                          Clearable="true"
+                          Variant="Variant.Outlined"
+                          Margin="Margin.Dense"
+                          Style="min-width:240px" />
+        </MudStack>
+    </ToolBarContent>
+    <Columns>
+        <PropertyColumn Property="x => x.CreatedAt" Title="Data" Format="dd/MM/yyyy" />
+        <PropertyColumn Property="x => x.Type" Title="Tipo">
+            <CellTemplate>@context.Item.Type.GetDisplayName()</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Category" Title="Categoria">
+            <CellTemplate>@context.Item.Category.GetDisplayName()</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Title" Title="Título" />
+        <PropertyColumn Property="x => x.Description" Title="Descrição" />
+        <PropertyColumn Property="x => x.Amount" Title="Valor"
+                        HeaderStyle="text-align:right"
+                        CellStyle="text-align:right; white-space:nowrap">
+            <CellTemplate>@context.Item.Amount.ToString("C", _culture)</CellTemplate>
+        </PropertyColumn>
+        <TemplateColumn Title="Ações" Sortable="false" Filterable="false" CellStyle="white-space:nowrap">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Size="Size.Small"
+                               Color="Color.Primary"
+                               Title="Editar"
+                               OnClick="@(() => OnEdit.InvokeAsync(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Size="Size.Small"
+                               Color="Color.Error"
+                               Title="Excluir"
+                               OnClick="@(() => OnDelete.InvokeAsync(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="Transaction" RowsPerPageString="Linhas por página:" />
+    </PagerContent>
+    <NoRecordsContent>
+        <MudText Class="pa-4">Nenhuma transação encontrada.</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText Class="pa-4">Carregando...</MudText>
+    </LoadingContent>
+</MudDataGrid>
