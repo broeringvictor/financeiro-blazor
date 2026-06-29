@@ -7,6 +7,7 @@ using MudBlazor;
 using WebApp.Components.Shared;
 using WebApp.Data;
 using WebApp.Models;
+using WebApp.Services;
 
 namespace WebApp.Components.Pages;
 
@@ -25,9 +26,42 @@ public partial class Home : ComponentBase
     private TransactionsGrid? _grid;
     private string _userId = string.Empty;
 
+    private bool _buscando;
+    private string? _resultadoBusca;
+
     protected override async Task OnInitializedAsync()
     {
         _userId = await GetUserIdAsync();
+    }
+
+    private async Task BuscarFaturaCelesc()
+    {
+        _buscando = true;
+        _resultadoBusca = null;
+
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var orquestrador = scope.ServiceProvider.GetRequiredService<BuscaFaturaOrchestrator>();
+
+            var invoice = await orquestrador.BuscarERegistrarAsync(
+                _userId,
+                consultaGmail: "Celesc (fatura OR boleto OR conta) newer_than:120d",
+                billerName: "Celesc");
+
+            _resultadoBusca = invoice is null
+                ? "Nenhum e-mail de fatura da Celesc encontrado."
+                : $"Fatura registrada: {invoice.Amount:C}, vence em {invoice.DueDate:dd/MM/yyyy}. Veja na página Faturas.";
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha ao buscar a fatura da Celesc.");
+            Snackbar.Add("Não foi possível concluir a busca.", Severity.Error);
+        }
+        finally
+        {
+            _buscando = false;
+        }
     }
 
     private Task AbrirNovaTransacao() => AbrirDialogoAsync(null);

@@ -1,3 +1,5 @@
+using Financeiro.ServiceDefaults;
+using Services;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
@@ -8,6 +10,15 @@ using WebApp.Components.Account;
 using WebApp.Data;
 
 var builder = WebApplication.CreateBuilder(args);
+
+builder.AddServiceDefaults();
+
+// Agente de IA (Anthropic + tools do Gmail) executado no próprio processo do WebApp.
+builder.Services.AddContaAgent(builder.Configuration);
+
+// Ingestão/pagamento de faturas (usa o DbContext com o usuário autenticado).
+builder.Services.AddScoped<WebApp.Services.IngestaoFaturaService>();
+builder.Services.AddScoped<WebApp.Services.BuscaFaturaOrchestrator>();
 
 // Add MudBlazor services
 builder.Services.AddMudServices();
@@ -47,6 +58,8 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
+
+app.MapDefaultEndpoints();
 
 // Cultura pt-BR fixa (separador decimal vírgula, R$, datas dd/MM) independente do locale do servidor.
 var supportedCultures = new[] { "pt-BR" };

@@ -1,0 +1,26 @@
+@page "/faturas"
+@rendermode InteractiveServer
+@using WebApp.Components.Shared
+
+<PageTitle>Faturas</PageTitle>
+
+<MudPopoverProvider />
+<MudDialogProvider />
+<MudSnackbarProvider />
+
+<AuthorizeView>
+    <Authorized>
+        <MudText Typo="Typo.h5" Class="mb-4">Faturas</MudText>
+
+        @if (!string.IsNullOrEmpty(_userId))
+        {
+            <InvoicesGrid @ref="_grid"
+                          UserId="@_userId"
+                          OnPay="PagarFatura"
+                          OnCancel="CancelarFatura" />
+        }
+    </Authorized>
+    <NotAuthorized>
+        <MudAlert Severity="Severity.Info">Faça login para ver suas faturas.</MudAlert>
+    </NotAuthorized>
+</AuthorizeView>

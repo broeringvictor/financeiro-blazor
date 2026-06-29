@@ -1,0 +1,137 @@
+@using WebApp.Extensions
+@using WebApp.Models
+@using WebApp.Models.Enums
+@using WebApp.Models.ValueObjects
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width:420px">
+            <MudTextField @bind-Value="_name" Label="Nome" Variant="Variant.Outlined" Required="true" />
+            <MudTextField @bind-Value="_billerName" Label="Fornecedor" Variant="Variant.Outlined" Required="true" />
+
+            <MudSelect T="ETransactionCategory" @bind-Value="_category" Label="Categoria" Variant="Variant.Outlined">
+                @foreach (var category in _expenseCategories)
+                {
+                    <MudSelectItem Value="category">@category.GetDisplayName()</MudSelectItem>
+                }
+            </MudSelect>
+
+            <MudStack Row="true" Spacing="2">
+                <MudSelect T="ERecurrenceFrequency" @bind-Value="_frequency" Label="Frequência" Variant="Variant.Outlined">
+                    @foreach (var freq in Enum.GetValues<ERecurrenceFrequency>())
+                    {
+                        <MudSelectItem Value="freq">@freq.GetDisplayName()</MudSelectItem>
+                    }
+                </MudSelect>
+                <MudNumericField @bind-Value="_interval" Label="A cada" Min="1" Variant="Variant.Outlined" />
+                <MudNumericField @bind-Value="_dueDay" Label="Dia venc." Min="1" Max="31" Variant="Variant.Outlined" />
+            </MudStack>
+
+            <MudStack Row="true" Spacing="2">
+                <MudDatePicker @bind-Date="_startDate" Label="Início" Variant="Variant.Outlined" />
+                <MudDatePicker @bind-Date="_endDate" Label="Fim (opcional)" Variant="Variant.Outlined" Clearable="true" />
+            </MudStack>
+
+            <MudNumericField @bind-Value="_fixedAmount" Label="Valor fixo (opcional)" Variant="Variant.Outlined"
+                             Adornment="Adornment.Start" AdornmentText="R$" />
+
+            <MudTextField @bind-Value="_senderContains" Label="Remetente contém" Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="_subjectKeywords" Label="Palavras no assunto (vírgula)" Variant="Variant.Outlined" />
+
+            @if (Bill is not null)
+            {
+                <MudSwitch @bind-Value="_active" Label="Ativa" Color="Color.Primary" />
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error">@_error</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>Conta a editar; <c>null</c> abre em modo criação.</summary>
+    [Parameter] public Bill? Bill { get; set; }
+
+    /// <summary>Dono da conta (modo criação).</summary>
+    [Parameter] public string UserId { get; set; } = string.Empty;
+
+    private static readonly IReadOnlyList<ETransactionCategory> _expenseCategories =
+        TransactionCategories.For(ETransactionTypes.Expense);
+
+    private string _name = string.Empty;
+    private string _billerName = string.Empty;
+    private ETransactionCategory _category = ETransactionCategory.Utilities;
+    private ERecurrenceFrequency _frequency = ERecurrenceFrequency.Monthly;
+    private int _interval = 1;
+    private int _dueDay = 10;
+    private DateTime? _startDate = DateTime.Today;
+    private DateTime? _endDate;
+    private decimal? _fixedAmount;
+    private string? _senderContains;
+    private string? _subjectKeywords;
+    private bool _active = true;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        if (Bill is null)
+        {
+            return;
+        }
+
+        _name = Bill.Name;
+        _billerName = Bill.BillerName;
+        _category = Bill.Category;
+        _frequency = Bill.Recurrence.Frequency;
+        _interval = Bill.Recurrence.Interval;
+        _dueDay = Bill.Recurrence.DueDay;
+        _startDate = Bill.Recurrence.StartDate.ToDateTime(TimeOnly.MinValue);
+        _endDate = Bill.Recurrence.EndDate?.ToDateTime(TimeOnly.MinValue);
+        _fixedAmount = Bill.FixedAmount;
+        _senderContains = Bill.SenderContains;
+        _subjectKeywords = Bill.SubjectKeywords;
+        _active = Bill.Active;
+    }
+
+    private void Submit()
+    {
+        _error = null;
+
+        try
+        {
+            var recurrence = new RecurrenceRule(
+                _frequency,
+                _interval,
+                _dueDay,
+                DateOnly.FromDateTime(_startDate ?? DateTime.Today),
+                _endDate is { } end ? DateOnly.FromDateTime(end) : null);
+
+            if (Bill is null)
+            {
+                var nova = new Bill(UserId, _name, _billerName, _category, recurrence,
+                    _fixedAmount, _senderContains, _subjectKeywords);
+                MudDialog.Close(DialogResult.Ok(nova));
+            }
+            else
+            {
+                Bill.Edit(_name, _billerName, _category, recurrence, _fixedAmount, _senderContains, _subjectKeywords, _active);
+                MudDialog.Close(DialogResult.Ok(Bill));
+            }
+        }
+        catch (Exception ex)
+        {
+            _error = ex.Message;
+        }
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+}

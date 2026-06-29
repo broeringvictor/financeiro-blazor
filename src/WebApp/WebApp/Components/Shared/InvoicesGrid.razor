@@ -1,0 +1,87 @@
+@using WebApp.Extensions
+@using WebApp.Models
+@using WebApp.Models.Enums
+
+<MudDataGrid @ref="_grid"
+             T="InvoiceRow"
+             ServerData="LoadServerData"
+             SortMode="SortMode.None"
+             Hover="true"
+             Dense="true"
+             Striped="true">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">Faturas</MudText>
+        <MudSpacer />
+        <MudSelect T="EInvoiceStatus?"
+                   Value="_statusFilter"
+                   ValueChanged="OnStatusFilterChanged"
+                   Label="Situação"
+                   Clearable="true"
+                   Variant="Variant.Outlined"
+                   Margin="Margin.Dense"
+                   Style="min-width:170px">
+            @foreach (var status in Enum.GetValues<EInvoiceStatus>())
+            {
+                <MudSelectItem T="EInvoiceStatus?" Value="status">@status.GetDisplayName()</MudSelectItem>
+            }
+        </MudSelect>
+    </ToolBarContent>
+    <Columns>
+        <PropertyColumn Property="x => x.BillName" Title="Conta">
+            <CellTemplate>@(context.Item.BillName ?? "(avulsa)")</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Invoice.ReferenceMonth" Title="Competência">
+            <CellTemplate>@context.Item.Invoice.ReferenceMonth.ToString("MM/yyyy")</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Invoice.Amount" Title="Valor"
+                        HeaderStyle="text-align:right"
+                        CellStyle="text-align:right; white-space:nowrap">
+            <CellTemplate>@context.Item.Invoice.Amount.ToString("C", _culture)</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Invoice.DueDate" Title="Vencimento">
+            <CellTemplate>@context.Item.Invoice.DueDate.ToString("dd/MM/yyyy")</CellTemplate>
+        </PropertyColumn>
+        <PropertyColumn Property="x => x.Invoice.Status" Title="Situação">
+            <CellTemplate>
+                @if (context.Item.Invoice.IsOverdue)
+                {
+                    <MudChip T="string" Color="Color.Error" Size="Size.Small">Vencida</MudChip>
+                }
+                else
+                {
+                    <MudChip T="string"
+                             Color="@(context.Item.Invoice.Status == EInvoiceStatus.Paid ? Color.Success : Color.Default)"
+                             Size="Size.Small">
+                        @context.Item.Invoice.Status.GetDisplayName()
+                    </MudChip>
+                }
+            </CellTemplate>
+        </PropertyColumn>
+        <TemplateColumn Title="Ações" Sortable="false" Filterable="false" CellStyle="white-space:nowrap">
+            <CellTemplate>
+                @if (context.Item.Invoice.Status == EInvoiceStatus.Pending)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Payments"
+                                   Size="Size.Small"
+                                   Color="Color.Success"
+                                   Title="Pagar"
+                                   OnClick="@(() => OnPay.InvokeAsync(context.Item.Invoice))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Cancel"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   Title="Cancelar"
+                                   OnClick="@(() => OnCancel.InvokeAsync(context.Item.Invoice))" />
+                }
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <PagerContent>
+        <MudDataGridPager T="InvoiceRow" RowsPerPageString="Linhas por página:" />
+    </PagerContent>
+    <NoRecordsContent>
+        <MudText Class="pa-4">Nenhuma fatura encontrada.</MudText>
+    </NoRecordsContent>
+    <LoadingContent>
+        <MudText Class="pa-4">Carregando...</MudText>
+    </LoadingContent>
+</MudDataGrid>
