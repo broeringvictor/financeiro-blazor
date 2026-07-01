@@ -19,6 +19,9 @@ public class Invoice : BaseModel
     /// <summary>Conta recorrente associada (null para fatura avulsa).</summary>
     public Guid? BillId { get; private set; }
 
+    /// <summary>Navegação para a conta recorrente (N:1, lado inverso de <see cref="Bill.Invoices"/>).</summary>
+    public Bill? Bill { get; private set; }
+
     /// <summary>Competência (1º dia do mês de referência).</summary>
     [DisplayName("Competência")]
     public DateOnly ReferenceMonth { get; private set; }

@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using WebApp.Data;
 
@@ -10,9 +11,11 @@ using WebApp.Data;
 namespace WebApp.Data.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260630112623_AddBillSearchFields")]
+    partial class AddBillSearchFields
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.9");
@@ -545,8 +548,8 @@ namespace WebApp.Data.Migrations
 
             modelBuilder.Entity("WebApp.Models.Invoice", b =>
                 {
-                    b.HasOne("WebApp.Models.Bill", "Bill")
-                        .WithMany("Invoices")
+                    b.HasOne("WebApp.Models.Bill", null)
+                        .WithMany()
                         .HasForeignKey("BillId")
                         .OnDelete(DeleteBehavior.SetNull);
 
@@ -560,8 +563,6 @@ namespace WebApp.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Bill");
                 });
 
             modelBuilder.Entity("WebApp.Models.Transaction", b =>
@@ -571,11 +572,6 @@ namespace WebApp.Data.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-                });
-
-            modelBuilder.Entity("WebApp.Models.Bill", b =>
-                {
-                    b.Navigation("Invoices");
                 });
 #pragma warning restore 612, 618
         }

@@ -11,14 +11,7 @@
 <AuthorizeView>
     <Authorized>
         <MudText Typo="Typo.h5" Class="mb-4">Faturas</MudText>
-
-        @if (!string.IsNullOrEmpty(_userId))
-        {
-            <InvoicesGrid @ref="_grid"
-                          UserId="@_userId"
-                          OnPay="PagarFatura"
-                          OnCancel="CancelarFatura" />
-        }
+        <FaturasPanel UserId="@_userId" />
     </Authorized>
     <NotAuthorized>
         <MudAlert Severity="Severity.Info">Faça login para ver suas faturas.</MudAlert>

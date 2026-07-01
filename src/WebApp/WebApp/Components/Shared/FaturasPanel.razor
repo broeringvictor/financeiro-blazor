@@ -1,0 +1,7 @@
+@if (!string.IsNullOrEmpty(UserId))
+{
+    <InvoicesGrid @ref="_grid"
+                  UserId="@UserId"
+                  OnPay="PagarFatura"
+                  OnCancel="CancelarFatura" />
+}

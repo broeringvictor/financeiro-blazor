@@ -46,6 +46,7 @@ public partial class InvoicesGrid : ComponentBase
 
         var query = db.Invoices
             .AsNoTracking()
+            .Include(i => i.Bill)
             .Where(i => i.UserId == UserId && i.DeletedAt == null);
 
         if (_statusFilter is { } status)
@@ -61,15 +62,8 @@ public partial class InvoicesGrid : ComponentBase
             .Take(state.PageSize)
             .ToListAsync(token);
 
-        // Resolve o nome da conta (Bill) para exibição.
-        var billIds = items.Where(i => i.BillId is not null).Select(i => i.BillId!.Value).Distinct().ToList();
-        var billNames = await db.Bills
-            .AsNoTracking()
-            .Where(b => billIds.Contains(b.Id))
-            .ToDictionaryAsync(b => b.Id, b => b.Name, token);
-
         var rows = items
-            .Select(i => new InvoiceRow(i, i.BillId is { } id && billNames.TryGetValue(id, out var name) ? name : null))
+            .Select(i => new InvoiceRow(i, i.Bill?.Name))
             .ToList();
 
         return new GridData<InvoiceRow> { Items = rows, TotalItems = totalItems };

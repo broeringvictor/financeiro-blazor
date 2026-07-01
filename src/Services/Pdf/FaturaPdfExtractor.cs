@@ -38,8 +38,9 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
 {
     private readonly ILogger _logger = logger ?? NullLogger<FaturaPdfExtractor>.Instance;
 
-    [Description("Extrai o valor, a data e a data de vencimento de uma fatura em PDF já baixada, " +
-                 "a partir do caminho do arquivo. Lida com PDFs protegidos por senha automaticamente.")]
+    [Description("PASSO FINAL: extrai valor, data de emissão e vencimento de um PDF de fatura já baixado " +
+                 "(use o caminho retornado por BaixarAnexosPdf). Lida com PDF protegido por senha automaticamente. " +
+                 "Prefira esta tool a ler o corpo do e-mail para obter os valores.")]
     public FaturaInfo ExtrairDadosFatura(
         [Description("Caminho do arquivo PDF da fatura (obtido em BaixarAnexosPdf).")]
         string caminhoPdf)
@@ -62,14 +63,34 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
             return new FaturaInfo(null, null, null, $"Falha ao ler o PDF: {ex.Message}");
         }
 
-        var valor = ExtrairValor(texto);
-        var vencimento = ExtrairData(texto, prioridade: ["vencimento", "venc."]);
-        var data = ExtrairData(texto, prioridade: ["emiss", "emissão", "data"], excluir: vencimento);
+        var info = ExtrairDeTexto(texto);
 
-        _logger.LogInformation("[Tool] ExtrairDadosFatura: valor={Valor} data={Data} vencimento={Venc}",
-            valor, data, vencimento);
+        _logger.LogInformation(
+            "[Tool] ExtrairDadosFatura: textoLen={Len} valor={Valor} data={Data} vencimento={Venc} | amostra: {Amostra}",
+            texto.Length, info.Valor, info.Data, info.Vencimento, Resumo(texto));
+
+        return info;
+    }
+
+    /// <summary>Extrai valor/datas de um texto qualquer (PDF ou corpo de e-mail).</summary>
+    public FaturaInfo ExtrairDeTexto(string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(texto))
+        {
+            return new FaturaInfo(null, null, null, "Texto vazio.");
+        }
+
+        var valor = ExtrairValor(texto);
+        var vencimento = ExtrairData(texto, prioridade: ["vencimento", "vencto", "venc.", "venc", "pagar até", "pagamento até"]);
+        var data = ExtrairData(texto, prioridade: ["emiss", "emissão", "data de emissão", "data"], excluir: vencimento);
 
         return new FaturaInfo(valor, data, vencimento);
+    }
+
+    private static string Resumo(string texto)
+    {
+        var limpo = texto.Replace('\n', ' ').Replace('\r', ' ').Trim();
+        return limpo.Length <= 300 ? limpo : limpo[..300];
     }
 
     private string ExtrairTexto(string caminhoPdf)
@@ -91,16 +112,27 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
 
     private static decimal? ExtrairValor(string texto)
     {
-        // 1) Tenta valores rotulados ("valor a pagar", "total a pagar", "total", "valor do documento").
+        // 1) Valor rotulado ("valor a pagar", "total a pagar", "total", "valor do documento", "valor cobrado").
         var rotulado = ValorRotuladoRegex().Match(texto);
         if (rotulado.Success && TryParseValor(rotulado.Groups["v"].Value, out var v))
         {
             return v;
         }
 
-        // 2) Fallback: maior valor monetário encontrado no documento.
+        // 2) Maior valor precedido de "R$".
+        if (MaiorValor(ValorComRsRegex().Matches(texto)) is { } comRs)
+        {
+            return comRs;
+        }
+
+        // 3) Último recurso: maior número no formato monetário (1.234,56 / 187,42) do documento.
+        return MaiorValor(ValorDecimalRegex().Matches(texto));
+    }
+
+    private static decimal? MaiorValor(MatchCollection matches)
+    {
         decimal? maior = null;
-        foreach (Match m in ValorRegex().Matches(texto))
+        foreach (Match m in matches)
         {
             if (TryParseValor(m.Groups["v"].Value, out var atual) && (maior is null || atual > maior))
             {
@@ -122,7 +154,7 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
                 continue;
             }
 
-            var janela = texto.Substring(idx, Math.Min(60, texto.Length - idx));
+            var janela = texto.Substring(idx, Math.Min(80, texto.Length - idx));
             var m = DataRegex().Match(janela);
             if (m.Success && TryParseData(m.Value, out var d) && d != excluir)
             {
@@ -151,11 +183,14 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
     private static bool TryParseData(string bruto, out DateOnly data) =>
         DateOnly.TryParseExact(bruto, ["dd/MM/yyyy", "dd/MM/yy"], CultureInfo.InvariantCulture, DateTimeStyles.None, out data);
 
-    [GeneratedRegex(@"(?:valor\s+a\s+pagar|total\s+a\s+pagar|valor\s+do\s+documento|total)\D{0,20}R?\$?\s*(?<v>\d{1,3}(?:\.\d{3})*,\d{2})", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"(?:valor\s*a\s*pagar|total\s*a\s*pagar|valor\s*do\s*documento|valor\s*cobrado|total)\D{0,15}R?\$?\s*(?<v>\d{1,3}(?:\.\d{3})*,\d{2})", RegexOptions.IgnoreCase)]
     private static partial Regex ValorRotuladoRegex();
 
     [GeneratedRegex(@"R\$\s*(?<v>\d{1,3}(?:\.\d{3})*,\d{2})", RegexOptions.IgnoreCase)]
-    private static partial Regex ValorRegex();
+    private static partial Regex ValorComRsRegex();
+
+    [GeneratedRegex(@"(?<v>\d{1,3}(?:\.\d{3})*,\d{2})")]
+    private static partial Regex ValorDecimalRegex();
 
     [GeneratedRegex(@"\d{2}/\d{2}/\d{2,4}")]
     private static partial Regex DataRegex();

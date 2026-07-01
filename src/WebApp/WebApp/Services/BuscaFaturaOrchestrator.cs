@@ -22,6 +22,13 @@ public sealed class BuscaFaturaOrchestrator(
     /// Procura o e-mail mais recente que casa com <paramref name="consultaGmail"/>, baixa/extrai o PDF
     /// e cria/atualiza a fatura. Retorna null se nenhum e-mail for encontrado.
     /// </summary>
+    /// <summary>Busca a fatura de uma conta usando a consulta configurada nela (SearchQuery) como contexto.</summary>
+    public Task<Invoice?> BuscarPorContaAsync(string userId, Bill bill, CancellationToken ct = default)
+    {
+        var consulta = string.IsNullOrWhiteSpace(bill.SearchQuery) ? bill.BillerName : bill.SearchQuery;
+        return BuscarERegistrarAsync(userId, consulta, bill.BillerName, ct);
+    }
+
     public async Task<Invoice?> BuscarERegistrarAsync(
         string userId,
         string consultaGmail,
@@ -50,6 +57,23 @@ public sealed class BuscaFaturaOrchestrator(
         var info = pdfPath is not null
             ? pdfExtractor.ExtrairDadosFatura(pdfPath)
             : new FaturaInfo(null, null, null, "Sem anexo PDF.");
+
+        // Fallback: se o PDF não rendeu valor/vencimento, tenta o corpo do e-mail.
+        if (info.Valor is null || info.Vencimento is null)
+        {
+            var doCorpo = pdfExtractor.ExtrairDeTexto(detalhe.Corpo);
+            info = new FaturaInfo(
+                info.Valor ?? doCorpo.Valor,
+                info.Data ?? doCorpo.Data,
+                info.Vencimento ?? doCorpo.Vencimento,
+                info.Erro);
+        }
+
+        if (info.Valor is null)
+        {
+            _logger.LogWarning("Não foi possível extrair o valor da fatura (e-mail {Id}, pdf {Pdf}).",
+                email.Id, pdfPath ?? "sem PDF");
+        }
 
         var dados = new FaturaExtraida(
             BillerName: billerName,

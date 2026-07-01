@@ -1,0 +1,67 @@
+@using WebApp.Extensions
+@using WebApp.Models
+@using WebApp.Models.Enums
+
+<MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
+    <MudText Typo="Typo.h6">Contas</MudText>
+    <MudSpacer />
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="NovaConta">
+        Nova conta
+    </MudButton>
+</MudStack>
+
+<MudDataGrid T="Bill" Items="_bills" Hover="true" Dense="true" Striped="true">
+    <Columns>
+        <PropertyColumn Property="x => x.Name" Title="Nome" />
+        <PropertyColumn Property="x => x.BillerName" Title="Fornecedor" />
+        <PropertyColumn Property="x => x.Category" Title="Categoria">
+            <CellTemplate>@context.Item.Category.GetDisplayName()</CellTemplate>
+        </PropertyColumn>
+        <TemplateColumn Title="Recorrência">
+            <CellTemplate>
+                @context.Item.Recurrence.Frequency.GetDisplayName() • dia @context.Item.Recurrence.DueDay
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Ativa">
+            <CellTemplate>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(context.Item.Active ? Color.Success : Color.Default)">
+                    @(context.Item.Active ? "Sim" : "Não")
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Busca auto">
+            <CellTemplate>
+                <MudChip T="string" Size="Size.Small"
+                         Color="@(context.Item.AutoSearch ? Color.Info : Color.Default)">
+                    @(context.Item.AutoSearch ? "Sim" : "Não")
+                </MudChip>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Ações" CellStyle="white-space:nowrap">
+            <CellTemplate>
+                <MudIconButton Icon="@Icons.Material.Filled.Search"
+                               Size="Size.Small"
+                               Color="Color.Info"
+                               Title="Buscar fatura agora"
+                               OnClick="@(() => BuscarConta(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Size="Size.Small"
+                               Color="Color.Primary"
+                               Title="Editar"
+                               OnClick="@(() => EditarConta(context.Item))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Size="Size.Small"
+                               Color="Color.Error"
+                               Title="Excluir"
+                               OnClick="@(() => ExcluirConta(context.Item))" />
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+    <NoRecordsContent>
+        <MudText Class="pa-4">Nenhuma conta cadastrada.</MudText>
+    </NoRecordsContent>
+</MudDataGrid>

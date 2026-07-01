@@ -28,14 +28,14 @@ public sealed class GmailTools(
     private readonly string _downloadDirectory =
         downloadDirectory ?? Path.Combine(Path.GetTempPath(), "financeiro-faturas");
 
-    [Description("Pesquisa e-mails no Gmail relacionados a contas, faturas ou boletos. " +
-                 "Use a sintaxe de busca do Gmail no parâmetro 'consulta'. " +
-                 "Retorna apenas resumos; use ObterDetalhesEmail para ler o conteúdo completo.")]
+    [Description("PONTO DE PARTIDA: pesquisa e-mails no Gmail e retorna resumos baratos (id, assunto, remetente, data, trecho). " +
+                 "Chame UMA vez com uma consulta enxuta usando operadores do Gmail e poucos resultados.")]
     public async Task<IReadOnlyList<ResumoEmail>> BuscarEmailsDeContas(
-        [Description("Consulta no formato de busca do Gmail, ex.: 'fatura OR boleto OR \"conta a pagar\" newer_than:30d'.")]
+        [Description("Consulta no formato de busca do Gmail. Combine operadores para reduzir ruído, ex.: " +
+                     "'Celesc (fatura OR boleto) has:attachment filename:pdf newer_than:120d' ou 'from:celesc.com.br newer_than:90d'.")]
         string consulta,
-        [Description("Número máximo de e-mails a retornar (1 a 50).")]
-        int maxResultados = 10,
+        [Description("Número máximo de e-mails a retornar. Use 3 a 5 — não peça mais que o necessário.")]
+        int maxResultados = 5,
         CancellationToken ct = default)
     {
         var max = Math.Clamp(maxResultados, 1, 50);
@@ -74,7 +74,9 @@ public sealed class GmailTools(
         return resumos;
     }
 
-    [Description("Obtém o conteúdo completo (assunto, remetente, data e corpo em texto) de um e-mail pelo seu ID.")]
+    [Description("FALLBACK (mais caro): lê o corpo completo de UM e-mail pelo ID. " +
+                 "Use só quando o e-mail não tiver PDF e for preciso achar valor/vencimento no texto. " +
+                 "Se houver anexo PDF, prefira BaixarAnexosPdf + ExtrairDadosFatura.")]
     public async Task<DetalheEmail> ObterDetalhesEmail(
         [Description("ID da mensagem do Gmail, obtido em BuscarEmailsDeContas.")]
         string messageId,
@@ -96,8 +98,8 @@ public sealed class GmailTools(
             ExtrairCorpoTexto(msg.Payload));
     }
 
-    [Description("Baixa os anexos em PDF de um e-mail (por exemplo, a fatura) para uma pasta temporária " +
-                 "e retorna os caminhos dos arquivos salvos. Use depois de identificar o e-mail correto.")]
+    [Description("CAMINHO PRINCIPAL: baixa os anexos PDF (a fatura) de UM e-mail para uma pasta temporária " +
+                 "e retorna os caminhos. Chame logo após escolher o e-mail certo; depois use ExtrairDadosFatura no caminho retornado.")]
     public async Task<IReadOnlyList<string>> BaixarAnexosPdf(
         [Description("ID da mensagem do Gmail cujos anexos PDF devem ser baixados.")]
         string messageId,

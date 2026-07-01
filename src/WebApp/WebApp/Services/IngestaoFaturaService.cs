@@ -75,16 +75,17 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db)
     /// <summary>Quita a fatura: cria uma Transaction (Expense) e liga-a à fatura (1:1).</summary>
     public async Task<Transaction> PagarAsync(Guid invoiceId, string userId, CancellationToken ct = default)
     {
-        var invoice = await db.Invoices.FirstOrDefaultAsync(
+        var invoice = await db.Invoices.Include(i => i.Bill).FirstOrDefaultAsync(
                           i => i.Id == invoiceId && i.UserId == userId && i.DeletedAt == null, ct)
                       ?? throw new InvalidOperationException("Fatura não encontrada.");
 
-        var bill = invoice.BillId is { } billId
-            ? await db.Bills.FirstOrDefaultAsync(b => b.Id == billId, ct)
-            : null;
+        if (invoice.Amount <= 0)
+        {
+            throw new InvalidOperationException("Valor da fatura ainda não reconhecido; ajuste o valor antes de pagar.");
+        }
 
-        var categoria = bill?.Category ?? ETransactionCategory.Utilities;
-        var titulo = $"Fatura {bill?.Name ?? "avulsa"}";
+        var categoria = invoice.Bill?.Category ?? ETransactionCategory.Utilities;
+        var titulo = $"Fatura {invoice.Bill?.Name ?? "avulsa"}";
 
         var transaction = new Transaction(userId, ETransactionTypes.Expense, categoria, titulo, null, invoice.Amount);
 

@@ -20,6 +20,13 @@ builder.Services.AddContaAgent(builder.Configuration);
 builder.Services.AddScoped<WebApp.Services.IngestaoFaturaService>();
 builder.Services.AddScoped<WebApp.Services.BuscaFaturaOrchestrator>();
 
+// Busca automática diária das contas com AutoSearch=true (seção "AutoSearchFaturas").
+var autoSearchFaturasOptions = builder.Configuration
+    .GetSection("AutoSearchFaturas")
+    .Get<WebApp.Services.AutoSearchFaturasOptions>() ?? new WebApp.Services.AutoSearchFaturasOptions();
+builder.Services.AddSingleton(autoSearchFaturasOptions);
+builder.Services.AddHostedService<WebApp.Services.AutoSearchFaturasWorker>();
+
 // Add MudBlazor services
 builder.Services.AddMudServices();
 

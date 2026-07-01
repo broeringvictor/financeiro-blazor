@@ -65,6 +65,21 @@ public class Bill : BaseModel
     /// <summary>Conta ativa (entra na varredura/expectativa).</summary>
     public bool Active { get; private set; } = true;
 
+    /// <summary>Quando true, o agente procura faturas desta conta automaticamente.</summary>
+    [DisplayName("Busca automática")]
+    public bool AutoSearch { get; private set; }
+
+    /// <summary>Consulta/contexto que o agente usa para procurar a fatura no e-mail e associá-la.</summary>
+    [DisplayName("Consulta de busca")]
+    public string? SearchQuery
+    {
+        get;
+        private set => field = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
+    /// <summary>Faturas (cobranças concretas) emitidas para esta conta (1:N).</summary>
+    public ICollection<Invoice> Invoices { get; private set; } = new List<Invoice>();
+
     /// <summary>Construtor usado pelo Entity Framework.</summary>
     private Bill() { }
 
@@ -77,7 +92,9 @@ public class Bill : BaseModel
         RecurrenceRule recurrence,
         decimal? fixedAmount = null,
         string? senderContains = null,
-        string? subjectKeywords = null)
+        string? subjectKeywords = null,
+        bool autoSearch = false,
+        string? searchQuery = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentNullException.ThrowIfNull(recurrence);
@@ -92,6 +109,8 @@ public class Bill : BaseModel
         FixedAmount = fixedAmount;
         SenderContains = senderContains;
         SubjectKeywords = subjectKeywords;
+        AutoSearch = autoSearch;
+        SearchQuery = searchQuery;
     }
 
     /// <summary>Aplica apenas os campos informados; marca como atualizada se algo mudou.</summary>
@@ -103,7 +122,9 @@ public class Bill : BaseModel
         decimal? fixedAmount = null,
         string? senderContains = null,
         string? subjectKeywords = null,
-        bool? active = null)
+        bool? active = null,
+        bool? autoSearch = null,
+        string? searchQuery = null)
     {
         if (category is { } cat)
             EnsureExpenseCategory(cat);
@@ -157,6 +178,18 @@ public class Bill : BaseModel
         if (active is { } newActive && Active != newActive)
         {
             Active = newActive;
+            hasChanges = true;
+        }
+
+        if (autoSearch is { } newAutoSearch && AutoSearch != newAutoSearch)
+        {
+            AutoSearch = newAutoSearch;
+            hasChanges = true;
+        }
+
+        if (searchQuery is not null && SearchQuery != (string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim()))
+        {
+            SearchQuery = searchQuery;
             hasChanges = true;
         }
 

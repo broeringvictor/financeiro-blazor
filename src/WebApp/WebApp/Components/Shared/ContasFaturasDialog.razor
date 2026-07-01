@@ -1,0 +1,15 @@
+<MudDialog>
+    <DialogContent>
+        <MudTabs Elevation="0" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-4">
+            <MudTabPanel Text="Contas" Icon="@Icons.Material.Filled.AccountBalanceWallet">
+                <ContasGrid UserId="@UserId" />
+            </MudTabPanel>
+            <MudTabPanel Text="Faturas" Icon="@Icons.Material.Filled.ReceiptLong">
+                <FaturasPanel UserId="@UserId" />
+            </MudTabPanel>
+        </MudTabs>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Fechar">Fechar</MudButton>
+    </DialogActions>
+</MudDialog>

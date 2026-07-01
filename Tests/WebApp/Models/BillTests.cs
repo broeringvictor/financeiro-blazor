@@ -69,6 +69,27 @@ public class BillTests
     }
 
     [Fact]
+    public void Create_DefineBuscaAutomaticaEConsulta()
+    {
+        var bill = new Bill(UserId, "Luz - Celesc", "Celesc", ETransactionCategory.Utilities, Mensal(),
+            autoSearch: true, searchQuery: "Celesc fatura newer_than:120d");
+
+        Assert.True(bill.AutoSearch);
+        Assert.Equal("Celesc fatura newer_than:120d", bill.SearchQuery);
+    }
+
+    [Fact]
+    public void Edit_AtualizaBuscaAutomaticaEConsulta()
+    {
+        var bill = CriarConta();
+
+        bill.Edit(autoSearch: true, searchQuery: "boleto Celesc");
+
+        Assert.True(bill.AutoSearch);
+        Assert.Equal("boleto Celesc", bill.SearchQuery);
+    }
+
+    [Fact]
     public void Deactivate_DesativaConta()
     {
         var bill = CriarConta();

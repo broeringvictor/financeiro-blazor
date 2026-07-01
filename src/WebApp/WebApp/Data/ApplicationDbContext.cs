@@ -50,8 +50,8 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
-            entity.HasOne<Bill>()
-                .WithMany()
+            entity.HasOne(i => i.Bill)
+                .WithMany(b => b.Invoices)
                 .HasForeignKey(i => i.BillId)
                 .OnDelete(DeleteBehavior.SetNull);
 

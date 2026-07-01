@@ -64,7 +64,8 @@
                     <MudIconButton Icon="@Icons.Material.Filled.Payments"
                                    Size="Size.Small"
                                    Color="Color.Success"
-                                   Title="Pagar"
+                                   Disabled="@(context.Item.Invoice.Amount <= 0)"
+                                   Title="@(context.Item.Invoice.Amount <= 0 ? "Valor não reconhecido" : "Pagar")"
                                    OnClick="@(() => OnPay.InvokeAsync(context.Item.Invoice))" />
                     <MudIconButton Icon="@Icons.Material.Filled.Cancel"
                                    Size="Size.Small"
