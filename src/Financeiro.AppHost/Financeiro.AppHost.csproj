@@ -9,8 +9,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\src\Services\Services.csproj" />
-      <ProjectReference Include="..\src\WebApp\WebApp\WebApp.csproj" />
+      <ProjectReference Include="..\Services\Services.csproj" />
+      <ProjectReference Include="..\WebApp\WebApp\WebApp.csproj" />
     </ItemGroup>
 
 </Project>
