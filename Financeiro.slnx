@@ -1,6 +1,6 @@
 <Solution>
-  <Project Path="Financeiro.AppHost/Financeiro.AppHost.csproj" />
-  <Project Path="Financeiro.ServiceDefaults/Financeiro.ServiceDefaults.csproj" />
+  <Project Path="src/Financeiro.AppHost/Financeiro.AppHost.csproj" />
+  <Project Path="src/Financeiro.ServiceDefaults/Financeiro.ServiceDefaults.csproj" />
   <Project Path="src/Services/Services.csproj" />
   <Project Path="src/WebApp/WebApp.Client/WebApp.Client.csproj" />
   <Project Path="src/WebApp/WebApp/WebApp.csproj" />
