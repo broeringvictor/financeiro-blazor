@@ -8,3 +8,6 @@ riderModule.iml
 app.db
 app.db-shm
 app.db-wal
+
+# Segredos de deploy (Gmail/Anthropic/etc.) — nunca versionar, só .env.example
+.env

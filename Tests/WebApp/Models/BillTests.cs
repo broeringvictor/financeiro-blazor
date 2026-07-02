@@ -12,8 +12,7 @@ public class BillTests
         new(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10));
 
     private static Bill CriarConta() =>
-        new(UserId, "Luz - Celesc", "Celesc", ETransactionCategory.Utilities, Mensal(),
-            senderContains: "celesc.com.br", subjectKeywords: "fatura, conta de energia");
+        new(UserId, "Luz - Celesc", "Celesc", ETransactionCategory.Utilities, Mensal());
 
     [Fact]
     public void Create_DeveDefinirValores()
@@ -43,11 +42,11 @@ public class BillTests
     }
 
     [Theory]
-    [InlineData("noreply@celesc.com.br", "Qualquer assunto", true)] // casa remetente
-    [InlineData("x@y.com", "Sua fatura chegou", true)]              // casa palavra-chave
-    [InlineData("x@y.com", "Boletim Celesc", true)]                 // fallback no nome do fornecedor
+    [InlineData("noreply@celesc.com.br", "Qualquer assunto", true)] // nome do fornecedor no remetente
+    [InlineData("x@y.com", "Boletim Celesc", true)]                 // nome do fornecedor no assunto
+    [InlineData("x@y.com", "Sua fatura chegou", false)]              // sem o nome do fornecedor
     [InlineData("x@y.com", "Newsletter", false)]                    // não casa
-    public void MatchesEmail_AvaliaRemetenteAssuntoEFornecedor(string from, string subject, bool esperado)
+    public void MatchesEmail_AvaliaFornecedorNoRemetenteOuAssunto(string from, string subject, bool esperado)
     {
         var bill = CriarConta();
 

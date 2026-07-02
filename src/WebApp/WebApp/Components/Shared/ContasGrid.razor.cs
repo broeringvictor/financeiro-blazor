@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 using WebApp.Data;
 using WebApp.Models;
+using WebApp.Services;
 
 namespace WebApp.Components.Shared;
 
@@ -23,7 +24,17 @@ public partial class ContasGrid : ComponentBase
 
     private IReadOnlyList<Bill> _bills = [];
 
-    protected override async Task OnInitializedAsync() => await CarregarAsync();
+    protected override async Task OnInitializedAsync()
+    {
+        // No prerender estático a instância é descartada e recriada quando o circuito interativo
+        // conecta — carregar aqui só duplicaria a consulta para nada.
+        if (!RendererInfo.IsInteractive)
+        {
+            return;
+        }
+
+        await CarregarAsync();
+    }
 
     private async Task CarregarAsync()
     {
@@ -87,6 +98,34 @@ public partial class ContasGrid : ComponentBase
         };
 
         await DialogService.ShowAsync<BillInvoicesDialog>($"Faturas de \"{bill.Name}\"", parameters, options);
+    }
+
+    private async Task BuscarConta(Bill bill)
+    {
+        if (string.IsNullOrEmpty(UserId))
+        {
+            return;
+        }
+
+        try
+        {
+            Snackbar.Add($"Procurando faturas de \"{bill.BillerName}\"...", Severity.Info);
+
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var orquestrador = scope.ServiceProvider.GetRequiredService<BuscaFaturaOrchestrator>();
+            var invoice = await orquestrador.BuscarPorContaAsync(UserId, bill);
+
+            Snackbar.Add(
+                invoice is null
+                    ? "Nenhuma fatura encontrada no e-mail."
+                    : $"Fatura registrada: {invoice.Amount:C}, vence em {invoice.DueDate:dd/MM/yyyy}.",
+                invoice is null ? Severity.Info : Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha ao buscar fatura da conta {BillId}.", bill.Id);
+            Snackbar.Add("Não foi possível buscar a fatura.", Severity.Error);
+        }
     }
 
     private async Task ExcluirConta(Bill bill)

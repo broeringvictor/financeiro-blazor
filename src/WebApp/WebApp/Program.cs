@@ -1,6 +1,7 @@
 using Financeiro.ServiceDefaults;
 using Services;
 using Microsoft.AspNetCore.Components.Authorization;
+using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
@@ -66,7 +67,25 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
 
 var app = builder.Build();
 
+// Aplica migrations pendentes no start. App pessoal, instância única — sem risco de corrida
+// entre processos concorrentes aplicando o schema ao mesmo tempo.
+using (var scope = app.Services.CreateScope())
+{
+    scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
+}
+
 app.MapDefaultEndpoints();
+
+// Atrás de um reverse proxy (nginx) que termina o TLS: sem isso, UseHttpsRedirection/UseHsts
+// veem a requisição como HTTP e entram em loop de redirect. Confia no hop imediato (o proxy
+// está na mesma rede Docker, não exposto direto à internet).
+var forwardedHeadersOptions = new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
+};
+forwardedHeadersOptions.KnownNetworks.Clear();
+forwardedHeadersOptions.KnownProxies.Clear();
+app.UseForwardedHeaders(forwardedHeadersOptions);
 
 // Cultura pt-BR fixa (separador decimal vírgula, R$, datas dd/MM) independente do locale do servidor.
 var supportedCultures = new[] { "pt-BR" };

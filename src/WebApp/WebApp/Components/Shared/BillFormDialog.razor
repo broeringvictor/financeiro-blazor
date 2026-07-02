@@ -35,9 +35,6 @@
             <MudNumericField @bind-Value="_fixedAmount" Label="Valor fixo (opcional)" Variant="Variant.Outlined"
                              Adornment="Adornment.Start" AdornmentText="R$" />
 
-            <MudTextField @bind-Value="_senderContains" Label="Remetente contém" Variant="Variant.Outlined" />
-            <MudTextField @bind-Value="_subjectKeywords" Label="Palavras no assunto (vírgula)" Variant="Variant.Outlined" />
-
             <MudTextField @bind-Value="_searchQuery"
                           Label="Consulta de busca (contexto p/ o agente)"
                           HelperText="Ex.: Celesc fatura OR boleto newer_than:120d"
@@ -84,8 +81,6 @@
     private DateTime? _startDate = DateTime.Today;
     private DateTime? _endDate;
     private decimal? _fixedAmount;
-    private string? _senderContains;
-    private string? _subjectKeywords;
     private string? _searchQuery;
     private bool _autoSearch;
     private bool _active = true;
@@ -107,8 +102,6 @@
         _startDate = Bill.Recurrence.StartDate.ToDateTime(TimeOnly.MinValue);
         _endDate = Bill.Recurrence.EndDate?.ToDateTime(TimeOnly.MinValue);
         _fixedAmount = Bill.FixedAmount;
-        _senderContains = Bill.SenderContains;
-        _subjectKeywords = Bill.SubjectKeywords;
         _searchQuery = Bill.SearchQuery;
         _autoSearch = Bill.AutoSearch;
         _active = Bill.Active;
@@ -130,12 +123,12 @@
             if (Bill is null)
             {
                 var nova = new Bill(UserId, _name, _billerName, _category, recurrence,
-                    _fixedAmount, _senderContains, _subjectKeywords, _autoSearch, _searchQuery);
+                    _fixedAmount, _autoSearch, _searchQuery);
                 MudDialog.Close(DialogResult.Ok(nova));
             }
             else
             {
-                Bill.Edit(_name, _billerName, _category, recurrence, _fixedAmount, _senderContains, _subjectKeywords,
+                Bill.Edit(_name, _billerName, _category, recurrence, _fixedAmount,
                     _active, _autoSearch, _searchQuery);
                 MudDialog.Close(DialogResult.Ok(Bill));
             }

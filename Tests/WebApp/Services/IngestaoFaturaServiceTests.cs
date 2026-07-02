@@ -37,8 +37,7 @@ public class IngestaoFaturaServiceTests
 
     private static Bill CriarContaCelesc() =>
         new(UserId, "Luz - Celesc", "Celesc", ETransactionCategory.Utilities,
-            new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10)),
-            senderContains: "celesc.com.br");
+            new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10)));
 
     private static FaturaExtraida DadosCelesc(string? messageId = "msg-1") =>
         new("Celesc", 187.42m, new DateOnly(2026, 6, 28), new DateOnly(2026, 7, 10), messageId, @"C:\tmp\celesc.pdf", "texto");
@@ -117,8 +116,7 @@ public class IngestaoFaturaServiceTests
         db.Bills.Add(new Bill(
             UserId, "Aluguel", "Imobiliária X", ETransactionCategory.Rent,
             new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 5, new DateOnly(2026, 1, 5)),
-            fixedAmount: 1500m,
-            senderContains: "imobiliariax.com.br"));
+            fixedAmount: 1500m));
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
 
@@ -140,8 +138,7 @@ public class IngestaoFaturaServiceTests
         db.Bills.Add(new Bill(
             UserId, "Aluguel", "Imobiliária X", ETransactionCategory.Rent,
             new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 5, new DateOnly(2026, 1, 5)),
-            fixedAmount: 1500m,
-            senderContains: "imobiliariax.com.br"));
+            fixedAmount: 1500m));
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
 

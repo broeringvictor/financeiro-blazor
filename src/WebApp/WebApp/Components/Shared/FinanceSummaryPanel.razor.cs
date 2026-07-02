@@ -33,7 +33,9 @@ public partial class FinanceSummaryPanel : ComponentBase
 
     protected override async Task OnParametersSetAsync()
     {
-        if (string.IsNullOrEmpty(UserId) || UserId == _lastLoadedUserId)
+        // No prerender estático (IsInteractive=false) a instância é descartada e recriada quando o
+        // circuito interativo conecta — carregar aqui só duplicaria as consultas para nada.
+        if (!RendererInfo.IsInteractive || string.IsNullOrEmpty(UserId) || UserId == _lastLoadedUserId)
         {
             return;
         }

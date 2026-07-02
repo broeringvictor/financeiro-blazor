@@ -46,22 +46,6 @@ public class Bill : BaseModel
     [DisplayName("Valor fixo")]
     public decimal? FixedAmount { get; private set; }
 
-    /// <summary>Trecho do remetente para casar e-mails desta conta.</summary>
-    [DisplayName("Remetente contém")]
-    public string? SenderContains
-    {
-        get;
-        private set => field = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
-    /// <summary>Palavras-chave do assunto (separadas por vírgula) para casar e-mails.</summary>
-    [DisplayName("Palavras no assunto")]
-    public string? SubjectKeywords
-    {
-        get;
-        private set => field = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
-    }
-
     /// <summary>Conta ativa (entra na varredura/expectativa).</summary>
     public bool Active { get; private set; } = true;
 
@@ -91,8 +75,6 @@ public class Bill : BaseModel
         ETransactionCategory category,
         RecurrenceRule recurrence,
         decimal? fixedAmount = null,
-        string? senderContains = null,
-        string? subjectKeywords = null,
         bool autoSearch = false,
         string? searchQuery = null)
     {
@@ -107,8 +89,6 @@ public class Bill : BaseModel
         Category = category;
         Recurrence = recurrence;
         FixedAmount = fixedAmount;
-        SenderContains = senderContains;
-        SubjectKeywords = subjectKeywords;
         AutoSearch = autoSearch;
         SearchQuery = searchQuery;
     }
@@ -120,8 +100,6 @@ public class Bill : BaseModel
         ETransactionCategory? category = null,
         RecurrenceRule? recurrence = null,
         decimal? fixedAmount = null,
-        string? senderContains = null,
-        string? subjectKeywords = null,
         bool? active = null,
         bool? autoSearch = null,
         string? searchQuery = null)
@@ -163,18 +141,6 @@ public class Bill : BaseModel
             hasChanges = true;
         }
 
-        if (senderContains is not null && SenderContains != senderContains.Trim())
-        {
-            SenderContains = senderContains;
-            hasChanges = true;
-        }
-
-        if (subjectKeywords is not null && SubjectKeywords != subjectKeywords.Trim())
-        {
-            SubjectKeywords = subjectKeywords;
-            hasChanges = true;
-        }
-
         if (active is { } newActive && Active != newActive)
         {
             Active = newActive;
@@ -211,33 +177,19 @@ public class Bill : BaseModel
     /// <summary>Exclusão lógica.</summary>
     public void Delete() => MarkAsDeleted();
 
-    /// <summary>Indica se um e-mail (remetente/assunto) pertence a esta conta.</summary>
+    /// <summary>Indica se um e-mail (remetente/assunto) pertence a esta conta: nome do fornecedor aparece no remetente ou assunto.</summary>
     public bool MatchesEmail(string? from, string? subject)
     {
+        if (string.IsNullOrWhiteSpace(BillerName))
+        {
+            return false;
+        }
+
         var f = from ?? string.Empty;
         var s = subject ?? string.Empty;
 
-        if (!string.IsNullOrWhiteSpace(SenderContains)
-            && f.Contains(SenderContains, StringComparison.OrdinalIgnoreCase))
-        {
-            return true;
-        }
-
-        if (!string.IsNullOrWhiteSpace(SubjectKeywords))
-        {
-            foreach (var kw in SubjectKeywords.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-            {
-                if (s.Contains(kw, StringComparison.OrdinalIgnoreCase))
-                {
-                    return true;
-                }
-            }
-        }
-
-        // Fallback: nome do fornecedor aparece no remetente ou assunto.
-        return !string.IsNullOrWhiteSpace(BillerName)
-               && (f.Contains(BillerName, StringComparison.OrdinalIgnoreCase)
-                   || s.Contains(BillerName, StringComparison.OrdinalIgnoreCase));
+        return f.Contains(BillerName, StringComparison.OrdinalIgnoreCase)
+               || s.Contains(BillerName, StringComparison.OrdinalIgnoreCase);
     }
 
     private static void EnsureExpenseCategory(ETransactionCategory category)
