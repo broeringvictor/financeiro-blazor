@@ -1,6 +1,8 @@
 @page "/Account/Register"
 
 @using System.ComponentModel.DataAnnotations
+@using System.Security.Cryptography
+@using System.Text
 @using Microsoft.AspNetCore.Identity
 @using WebApp.Data
 
@@ -9,6 +11,7 @@
 @inject SignInManager<ApplicationUser> SignInManager
 @inject ILogger<Register> Logger
 @inject IdentityRedirectManager RedirectManager
+@inject IConfiguration Configuration
 
 <PageTitle>Register</PageTitle>
 
@@ -22,6 +25,9 @@
         <MudText Typo="Typo.body1" GutterBottom="true">Create a new account.</MudText>
 
         <MudStack Spacing="3">
+            <MudStaticTextField For="@(() => Input.InviteCode)" @bind-Value="Input.InviteCode"
+                                Label="Código de convite" Placeholder="código de convite"
+                                UserAttributes="@(new() { { "aria-required", "true" } } )" />
             <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
                                 Label="Email" Placeholder="name@example.com"
                                 UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )" />
@@ -50,8 +56,16 @@
     protected override void OnInitialized() => Input ??= new();
 
     // Sem confirmação de e-mail: app de uso pessoal, a conta já entra ativa e logada.
+    // Cadastro fechado por código de convite (Auth:InviteCode) — sem ele, qualquer um na internet
+    // poderia criar conta e usar a integração com Gmail/IA, que é compartilhada entre usuários.
     public async Task RegisterUser(EditContext editContext)
     {
+        if (!CodigoConviteValido(Input.InviteCode))
+        {
+            identityErrors = [new IdentityError { Description = "Código de convite inválido." }];
+            return;
+        }
+
         var user = CreateUser();
 
         await UserStore.SetUserNameAsync(user, Input.Email, CancellationToken.None);
@@ -93,8 +107,31 @@
         return (IUserEmailStore<ApplicationUser>)UserStore;
     }
 
+    /// <summary>Compara em tempo constante contra Auth:InviteCode; sem código configurado, bloqueia todo cadastro.</summary>
+    private bool CodigoConviteValido(string informado)
+    {
+        var esperado = Configuration["Auth:InviteCode"];
+        if (string.IsNullOrEmpty(esperado))
+        {
+            Logger.LogWarning("Tentativa de cadastro bloqueada: Auth:InviteCode não configurado.");
+            return false;
+        }
+
+        var bytesInformado = Encoding.UTF8.GetBytes(informado ?? "");
+        var bytesEsperado = Encoding.UTF8.GetBytes(esperado);
+
+        // Tamanhos diferentes já vazam informação por timing, mas o código não é segredo de alto risco
+        // (só evita cadastro por estranhos); ainda assim compara em tempo constante quando os tamanhos batem.
+        return bytesInformado.Length == bytesEsperado.Length
+               && CryptographicOperations.FixedTimeEquals(bytesInformado, bytesEsperado);
+    }
+
     private sealed class InputModel
     {
+        [Required]
+        [Display(Name = "Código de convite")]
+        public string InviteCode { get; set; } = "";
+
         [Required]
         [EmailAddress]
         [Display(Name = "Email")]
