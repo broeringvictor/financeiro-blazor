@@ -5,13 +5,13 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
 WORKDIR /src
 
 # Copia só os .csproj primeiro para cachear o restore em builds subsequentes.
-COPY Financeiro.ServiceDefaults/Financeiro.ServiceDefaults.csproj Financeiro.ServiceDefaults/
+COPY src/Financeiro.ServiceDefaults/Financeiro.ServiceDefaults.csproj src/Financeiro.ServiceDefaults/
 COPY src/Services/Services.csproj src/Services/
 COPY src/WebApp/WebApp.Client/WebApp.Client.csproj src/WebApp/WebApp.Client/
 COPY src/WebApp/WebApp/WebApp.csproj src/WebApp/WebApp/
 RUN dotnet restore src/WebApp/WebApp/WebApp.csproj
 
-COPY Financeiro.ServiceDefaults/ Financeiro.ServiceDefaults/
+COPY src/Financeiro.ServiceDefaults/ src/Financeiro.ServiceDefaults/
 COPY src/Services/ src/Services/
 COPY src/WebApp/ src/WebApp/
 RUN dotnet publish src/WebApp/WebApp/WebApp.csproj -c Release -o /app/publish --no-restore
