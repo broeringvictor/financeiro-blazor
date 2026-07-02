@@ -1,42 +1,23 @@
-﻿@implements IDisposable
-@using System.Security.Claims
+@implements IDisposable
 
 @inject NavigationManager NavigationManager
-@inject IDialogService DialogService
-
-<MudPopoverProvider />
-<MudDialogProvider />
 
 <MudNavMenu>
-    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
-    <MudNavLink Href="faturas" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ReceiptLong">Faturas</MudNavLink>
-    <AuthorizeView>
-        <Authorized Context="contasContext">
-            <button type="button" class="mud-nav-link mud-ripple" @onclick="@(() => AbrirContasEFaturas(contasContext.User))">
-                <MudIcon Icon="@Icons.Material.Filled.AccountBalanceWallet" Class="mr-3"></MudIcon> Contas
-            </button>
-        </Authorized>
-        <NotAuthorized>
-            <MudNavLink Href="contas" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet">Contas</MudNavLink>
-        </NotAuthorized>
-    </AuthorizeView>
-    <MudNavLink Href="counter" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Add">Counter</MudNavLink>
-    
-    <MudNavLink Href="weather" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Weather</MudNavLink>
-
-    <MudNavLink Href="auth" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Lock">Auth Required</MudNavLink>
     <AuthorizeView>
         <Authorized>
+            <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Home</MudNavLink>
+            <MudNavLink Href="faturas" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.ReceiptLong">Faturas</MudNavLink>
+            <MudNavLink Href="contas" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.AccountBalanceWallet">Contas</MudNavLink>
             <MudNavLink Href="Account/Manage" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">@context.User.Identity?.Name</MudNavLink>
             <form action="Account/Logout" method="post" data-enhance="false">
-                <AntiforgeryToken />
-                <input type="hidden" name="ReturnUrl" value="@currentUrl" />
+                <AntiforgeryToken/>
+                <input type="hidden" name="ReturnUrl" value="@currentUrl"/>
                 <button type="submit" class="mud-nav-link mud-ripple">
                     <MudIcon Icon="@Icons.Material.Filled.Logout" Color="Color.Info" Class="mr-3"></MudIcon> Logout
                 </button>
             </form>
         </Authorized>
-        <NotAuthorized>
+        <NotAuthorized> 
             <MudNavLink Href="Account/Register" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Person">Register</MudNavLink>
             <MudNavLink Href="Account/Login" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Password">Login</MudNavLink>
         </NotAuthorized>
@@ -59,28 +40,8 @@
         StateHasChanged();
     }
 
-    private async Task AbrirContasEFaturas(ClaimsPrincipal user)
-    {
-        var userId = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-        if (string.IsNullOrEmpty(userId))
-        {
-            return;
-        }
-
-        var parameters = new DialogParameters<ContasFaturasDialog> { { x => x.UserId, userId } };
-        var options = new DialogOptions
-        {
-            CloseOnEscapeKey = true,
-            MaxWidth = MaxWidth.Medium,
-            FullWidth = true,
-        };
-
-        await DialogService.ShowAsync<ContasFaturasDialog>("Contas e faturas", parameters, options);
-    }
-
     public void Dispose()
     {
         NavigationManager.LocationChanged -= OnLocationChanged;
     }
 }
-

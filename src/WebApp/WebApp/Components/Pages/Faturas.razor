@@ -1,19 +1,9 @@
 @page "/faturas"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 @using WebApp.Components.Shared
 
 <PageTitle>Faturas</PageTitle>
 
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
-
-<AuthorizeView>
-    <Authorized>
-        <MudText Typo="Typo.h5" Class="mb-4">Faturas</MudText>
-        <FaturasPanel UserId="@_userId" />
-    </Authorized>
-    <NotAuthorized>
-        <MudAlert Severity="Severity.Info">Faça login para ver suas faturas.</MudAlert>
-    </NotAuthorized>
-</AuthorizeView>
+<MudText Typo="Typo.h5" Class="mb-4">Faturas</MudText>
+<FaturasPanel UserId="@_userId" />

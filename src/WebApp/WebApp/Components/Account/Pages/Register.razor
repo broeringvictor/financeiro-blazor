@@ -1,59 +1,40 @@
-﻿@page "/Account/Register"
+@page "/Account/Register"
 
 @using System.ComponentModel.DataAnnotations
-@using System.Text
-@using System.Text.Encodings.Web
 @using Microsoft.AspNetCore.Identity
-@using Microsoft.AspNetCore.WebUtilities
 @using WebApp.Data
 
 @inject UserManager<ApplicationUser> UserManager
 @inject IUserStore<ApplicationUser> UserStore
 @inject SignInManager<ApplicationUser> SignInManager
-@inject IEmailSender<ApplicationUser> EmailSender
 @inject ILogger<Register> Logger
-@inject NavigationManager NavigationManager
 @inject IdentityRedirectManager RedirectManager
 
 <PageTitle>Register</PageTitle>
 
 <MudText Typo="Typo.h3" GutterBottom="true">Register</MudText>
 
-<MudGrid>
-    <MudItem md="6">
-        <StatusMessage Message="@Message" />
-        <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
-            <DataAnnotationsValidator />
+<MudStack Style="max-width: 420px;">
+    <StatusMessage Message="@Message" />
+    <EditForm Model="Input" asp-route-returnUrl="@ReturnUrl" method="post" OnValidSubmit="RegisterUser" FormName="register">
+        <DataAnnotationsValidator />
 
-            <MudText Typo="Typo.body1" GutterBottom="true">Create a new account.</MudText>
+        <MudText Typo="Typo.body1" GutterBottom="true">Create a new account.</MudText>
 
-            <MudGrid>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
-                                        Label="Email" Placeholder="name@example.com"
-                                        UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
-                                        Label="Password" InputType="InputType.Password" Placeholder="password"
-                                        UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticTextField For="@(() => Input.ConfirmPassword)" @bind-Value="Input.ConfirmPassword"
-                                        Label="Confirm Password" InputType="InputType.Password" Placeholder="confirm password"
-                                        UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
-                </MudItem>
-                <MudItem md="12">
-                    <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">Register</MudStaticButton>
-                </MudItem>
-            </MudGrid>
-        </EditForm>
-    </MudItem>
-    <MudItem md="6">
-        <MudText Typo="Typo.body1" GutterBottom="true">Use another service to register.</MudText>
-        <ExternalLoginPicker />
-    </MudItem>
-</MudGrid>
+        <MudStack Spacing="3">
+            <MudStaticTextField For="@(() => Input.Email)" @bind-Value="Input.Email"
+                                Label="Email" Placeholder="name@example.com"
+                                UserAttributes="@(new() { { "autocomplete", "username" }, { "aria-required", "true" } } )" />
+            <MudStaticTextField For="@(() => Input.Password)" @bind-Value="Input.Password"
+                                Label="Password" InputType="InputType.Password" Placeholder="password"
+                                UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
+            <MudStaticTextField For="@(() => Input.ConfirmPassword)" @bind-Value="Input.ConfirmPassword"
+                                Label="Confirm Password" InputType="InputType.Password" Placeholder="confirm password"
+                                UserAttributes="@(new() { { "autocomplete", "new-password" }, { "aria-required", "true" } } )" />
+            <MudStaticButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" FormAction="FormAction.Submit">Register</MudStaticButton>
+        </MudStack>
+    </EditForm>
+</MudStack>
 
 @code {
     private IEnumerable<IdentityError>? identityErrors;
@@ -68,6 +49,7 @@
 
     protected override void OnInitialized() => Input ??= new();
 
+    // Sem confirmação de e-mail: app de uso pessoal, a conta já entra ativa e logada.
     public async Task RegisterUser(EditContext editContext)
     {
         var user = CreateUser();
@@ -84,22 +66,6 @@
         }
 
         Logger.LogInformation("User created a new account with password.");
-
-        var userId = await UserManager.GetUserIdAsync(user);
-        var code = await UserManager.GenerateEmailConfirmationTokenAsync(user);
-        code = WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(code));
-        var callbackUrl = NavigationManager.GetUriWithQueryParameters(
-            NavigationManager.ToAbsoluteUri("Account/ConfirmEmail").AbsoluteUri,
-            new Dictionary<string, object?> { ["userId"] = userId, ["code"] = code, ["returnUrl"] = ReturnUrl });
-
-        await EmailSender.SendConfirmationLinkAsync(user, Input.Email, HtmlEncoder.Default.Encode(callbackUrl));
-
-        if (UserManager.Options.SignIn.RequireConfirmedAccount)
-        {
-            RedirectManager.RedirectTo(
-                "Account/RegisterConfirmation",
-                new() { ["email"] = Input.Email, ["returnUrl"] = ReturnUrl });
-        }
 
         await SignInManager.SignInAsync(user, isPersistent: false);
         RedirectManager.RedirectTo(ReturnUrl);

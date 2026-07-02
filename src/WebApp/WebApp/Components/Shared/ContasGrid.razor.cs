@@ -4,11 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 using WebApp.Data;
 using WebApp.Models;
-using WebApp.Services;
 
 namespace WebApp.Components.Shared;
 
-/// <summary>Grade de contas (Bill) com as ações de CRUD e busca de fatura. Reusada na página /contas e no modal de contas+faturas.</summary>
+/// <summary>Grade de contas (Bill) com as ações de CRUD, busca de fatura e o histórico de faturas de cada conta.</summary>
 public partial class ContasGrid : ComponentBase
 {
     [Inject] private IDialogService DialogService { get; set; } = default!;
@@ -73,32 +72,21 @@ public partial class ContasGrid : ComponentBase
         }
     }
 
-    private async Task BuscarConta(Bill bill)
+    private async Task VerFaturas(Bill bill)
     {
-        if (string.IsNullOrEmpty(UserId))
+        var parameters = new DialogParameters<BillInvoicesDialog>
         {
-            return;
-        }
-
-        try
+            { x => x.UserId, UserId },
+            { x => x.BillId, bill.Id },
+        };
+        var options = new DialogOptions
         {
-            Snackbar.Add($"Procurando faturas de \"{bill.BillerName}\"...", Severity.Info);
+            CloseOnEscapeKey = true,
+            MaxWidth = MaxWidth.Medium,
+            FullWidth = true,
+        };
 
-            await using var scope = ScopeFactory.CreateAsyncScope();
-            var orquestrador = scope.ServiceProvider.GetRequiredService<BuscaFaturaOrchestrator>();
-            var invoice = await orquestrador.BuscarPorContaAsync(UserId, bill);
-
-            Snackbar.Add(
-                invoice is null
-                    ? "Nenhuma fatura encontrada no e-mail."
-                    : $"Fatura registrada: {invoice.Amount:C}, vence em {invoice.DueDate:dd/MM/yyyy}.",
-                invoice is null ? Severity.Info : Severity.Success);
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Falha ao buscar fatura da conta {BillId}.", bill.Id);
-            Snackbar.Add("Não foi possível buscar a fatura.", Severity.Error);
-        }
+        await DialogService.ShowAsync<BillInvoicesDialog>($"Faturas de \"{bill.Name}\"", parameters, options);
     }
 
     private async Task ExcluirConta(Bill bill)

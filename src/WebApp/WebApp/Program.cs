@@ -4,7 +4,6 @@ using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using MudBlazor.Services;
-using WebApp.Client.Pages;
 using WebApp.Components;
 using WebApp.Components.Account;
 using WebApp.Data;
@@ -19,6 +18,9 @@ builder.Services.AddContaAgent(builder.Configuration);
 // Ingestão/pagamento de faturas (usa o DbContext com o usuário autenticado).
 builder.Services.AddScoped<WebApp.Services.IngestaoFaturaService>();
 builder.Services.AddScoped<WebApp.Services.BuscaFaturaOrchestrator>();
+
+// Agregações do dashboard (saldo, gastos por mês, previsão de gastos).
+builder.Services.AddScoped<WebApp.Services.FinanceSummaryService>();
 
 // Busca automática diária das contas com AutoSearch=true (seção "AutoSearchFaturas").
 var autoSearchFaturasOptions = builder.Configuration
@@ -54,15 +56,13 @@ builder.Services.AddDatabaseDeveloperPageExceptionFilter();
 
 builder.Services.AddIdentityCore<ApplicationUser>(options =>
 {
-    // Em desenvolvimento não exigimos confirmação de e-mail (não há SMTP configurado).
-    options.SignIn.RequireConfirmedAccount = !builder.Environment.IsDevelopment();
+    // App de uso pessoal, sem SMTP: cadastro simples, sem confirmação de e-mail nem redefinição por e-mail.
+    options.SignIn.RequireConfirmedAccount = false;
     options.Stores.SchemaVersion = IdentitySchemaVersions.Version3;
 })
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
-
-builder.Services.AddSingleton<IEmailSender<ApplicationUser>, IdentityNoOpEmailSender>();
 
 var app = builder.Build();
 

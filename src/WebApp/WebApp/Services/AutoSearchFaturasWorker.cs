@@ -61,8 +61,22 @@ public sealed class AutoSearchFaturasWorker(
                 .Where(b => b.Active && b.AutoSearch && b.DeletedAt == null)
                 .ToListAsync(stoppingToken);
 
+            var referencia = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 1);
+            var idsResolvidosNoPeriodo = await db.Invoices
+                .Where(i => i.ReferenceMonth == referencia && i.Amount > 0 && i.DeletedAt == null && i.BillId != null)
+                .Select(i => i.BillId!.Value)
+                .ToListAsync(stoppingToken);
+
+            var pendentes = contas.Where(b => !idsResolvidosNoPeriodo.Contains(b.Id)).ToList();
+            if (pendentes.Count < contas.Count)
+            {
+                logger.LogInformation(
+                    "{Puladas} conta(s) já com fatura reconhecida na competência atual — busca pulada.",
+                    contas.Count - pendentes.Count);
+            }
+
             await ExecutarVarreduraAsync(
-                contas,
+                pendentes,
                 (bill, ct) => orquestrador.BuscarPorContaAsync(bill.UserId, bill, ct),
                 stoppingToken);
         }

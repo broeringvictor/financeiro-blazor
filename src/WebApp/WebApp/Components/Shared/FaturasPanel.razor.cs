@@ -21,6 +21,9 @@ public partial class FaturasPanel : ComponentBase
     /// <summary>Dono das faturas exibidas.</summary>
     [Parameter, EditorRequired] public string UserId { get; set; } = string.Empty;
 
+    /// <summary>Quando informado, restringe às faturas de uma única conta (Bill).</summary>
+    [Parameter] public Guid? BillId { get; set; }
+
     private InvoicesGrid? _grid;
 
     private async Task PagarFatura(Invoice invoice)

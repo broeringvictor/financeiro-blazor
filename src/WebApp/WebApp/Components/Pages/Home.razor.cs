@@ -24,6 +24,7 @@ public partial class Home : ComponentBase
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 
     private TransactionsGrid? _grid;
+    private FinanceSummaryPanel? _resumo;
     private string _userId = string.Empty;
 
     private bool _buscando;
@@ -33,36 +34,7 @@ public partial class Home : ComponentBase
     {
         _userId = await GetUserIdAsync();
     }
-
-    private async Task BuscarFaturaCelesc()
-    {
-        _buscando = true;
-        _resultadoBusca = null;
-
-        try
-        {
-            await using var scope = ScopeFactory.CreateAsyncScope();
-            var orquestrador = scope.ServiceProvider.GetRequiredService<BuscaFaturaOrchestrator>();
-
-            var invoice = await orquestrador.BuscarERegistrarAsync(
-                _userId,
-                consultaGmail: "Celesc (fatura OR boleto OR conta) newer_than:120d",
-                billerName: "Celesc");
-
-            _resultadoBusca = invoice is null
-                ? "Nenhum e-mail de fatura da Celesc encontrado."
-                : $"Fatura registrada: {invoice.Amount:C}, vence em {invoice.DueDate:dd/MM/yyyy}. Veja na página Faturas.";
-        }
-        catch (Exception ex)
-        {
-            Logger.LogError(ex, "Falha ao buscar a fatura da Celesc.");
-            Snackbar.Add("Não foi possível concluir a busca.", Severity.Error);
-        }
-        finally
-        {
-            _buscando = false;
-        }
-    }
+    
 
     private Task AbrirNovaTransacao() => AbrirDialogoAsync(null);
 
@@ -151,6 +123,11 @@ public partial class Home : ComponentBase
             if (_grid is not null)
             {
                 await _grid.ReloadAsync();
+            }
+
+            if (_resumo is not null)
+            {
+                await _resumo.ReloadAsync();
             }
         }
         catch (DbUpdateException ex)

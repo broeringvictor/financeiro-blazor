@@ -10,14 +10,20 @@ namespace WebApp.Services;
 /// Persiste faturas a partir dos dados extraídos pelo agente e registra o pagamento (cria a Transaction).
 /// Roda no WebApp, onde existe o usuário autenticado.
 /// </summary>
-public sealed class IngestaoFaturaService(ApplicationDbContext db)
+public sealed class IngestaoFaturaService(ApplicationDbContext db, ILogger<IngestaoFaturaService> logger)
 {
+    /// <summary>Tolerância para considerar o valor extraído igual ao valor fixo cadastrado.</summary>
+    private const decimal ToleranciaValorFixo = 0.01m;
+
     /// <summary>
     /// Cria ou atualiza a fatura (idempotente). Dedupe por e-mail de origem e por conta/competência.
     /// </summary>
     public async Task<Invoice> UpsertAsync(string userId, FaturaExtraida dados, CancellationToken ct = default)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+        var bill = await MatchBillAsync(userId, dados, ct);
+        var valor = ValidarValor(bill, dados.Valor);
 
         // 1) Dedupe pelo e-mail de origem.
         if (!string.IsNullOrWhiteSpace(dados.SourceEmailMessageId))
@@ -30,13 +36,11 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db)
 
             if (existentePorEmail is not null)
             {
-                existentePorEmail.UpdateFromExtraction(dados.Valor, dados.Vencimento, dados.Emissao, dados.PdfPath, dados.TextoBruto);
+                existentePorEmail.UpdateFromExtraction(valor, dados.Vencimento, dados.Emissao, dados.PdfPath, dados.TextoBruto);
                 await db.SaveChangesAsync(ct);
                 return existentePorEmail;
             }
         }
-
-        var bill = await MatchBillAsync(userId, dados, ct);
 
         // Competência ~ mês de consumo: usa a emissão quando disponível, senão o vencimento.
         var referencia = PrimeiroDiaDoMes(dados.Emissao ?? dados.Vencimento ?? DateOnly.FromDateTime(DateTime.Today));
@@ -50,7 +54,7 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db)
 
             if (existentePorPeriodo is not null)
             {
-                existentePorPeriodo.UpdateFromExtraction(dados.Valor, dados.Vencimento, dados.Emissao, dados.PdfPath, dados.TextoBruto);
+                existentePorPeriodo.UpdateFromExtraction(valor, dados.Vencimento, dados.Emissao, dados.PdfPath, dados.TextoBruto);
                 await db.SaveChangesAsync(ct);
                 return existentePorPeriodo;
             }
@@ -60,7 +64,7 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db)
             userId,
             bill?.Id,
             referencia,
-            dados.Valor ?? 0m,
+            valor ?? 0m,
             dados.Vencimento ?? UltimoDiaDoMes(referencia),
             dados.Emissao,
             dados.SourceEmailMessageId,
@@ -70,6 +74,29 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db)
         db.Invoices.Add(nova);
         await db.SaveChangesAsync(ct);
         return nova;
+    }
+
+    /// <summary>
+    /// Para contas de valor fixo, confirma o valor extraído contra <see cref="Bill.FixedAmount"/>.
+    /// Se divergir, descarta o valor extraído (fica como "não reconhecido") em vez de gravar um número
+    /// possivelmente errado — o texto bruto continua salvo para conferência manual.
+    /// </summary>
+    private decimal? ValidarValor(Bill? bill, decimal? valorExtraido)
+    {
+        if (bill?.FixedAmount is not { } fixo || valorExtraido is not { } extraido)
+        {
+            return valorExtraido;
+        }
+
+        if (Math.Abs(extraido - fixo) <= ToleranciaValorFixo)
+        {
+            return extraido;
+        }
+
+        logger.LogWarning(
+            "Valor extraído (R$ {Extraido}) diverge do valor fixo cadastrado para '{Conta}' (R$ {Fixo}); fatura ficará como não reconhecida para revisão manual.",
+            extraido, bill.Name, fixo);
+        return null;
     }
 
     /// <summary>Quita a fatura: cria uma Transaction (Expense) e liga-a à fatura (1:1).</summary>

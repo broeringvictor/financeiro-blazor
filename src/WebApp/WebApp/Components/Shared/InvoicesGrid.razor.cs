@@ -16,6 +16,9 @@ public partial class InvoicesGrid : ComponentBase
     /// <summary>Dono das faturas exibidas.</summary>
     [Parameter, EditorRequired] public string UserId { get; set; } = string.Empty;
 
+    /// <summary>Quando informado, restringe às faturas de uma única conta (Bill).</summary>
+    [Parameter] public Guid? BillId { get; set; }
+
     /// <summary>Disparado ao clicar em pagar uma fatura.</summary>
     [Parameter] public EventCallback<Invoice> OnPay { get; set; }
 
@@ -28,7 +31,13 @@ public partial class InvoicesGrid : ComponentBase
     private static readonly CultureInfo _culture = CultureInfo.GetCultureInfo("pt-BR");
 
     private MudDataGrid<InvoiceRow> _grid = default!;
-    private EInvoiceStatus? _statusFilter = EInvoiceStatus.Pending;
+    private EInvoiceStatus? _statusFilter;
+
+    protected override void OnInitialized()
+    {
+        // Na visão de uma conta específica mostramos todo o histórico; na visão geral, só as pendentes.
+        _statusFilter = BillId is null ? EInvoiceStatus.Pending : null;
+    }
 
     /// <summary>Recarrega a página atual a partir do banco.</summary>
     public Task ReloadAsync() => _grid.ReloadServerData();
@@ -49,6 +58,11 @@ public partial class InvoicesGrid : ComponentBase
             .Include(i => i.Bill)
             .Where(i => i.UserId == UserId && i.DeletedAt == null);
 
+        if (BillId is { } billId)
+        {
+            query = query.Where(i => i.BillId == billId);
+        }
+
         if (_statusFilter is { } status)
         {
             query = query.Where(i => i.Status == status);
@@ -56,8 +70,11 @@ public partial class InvoicesGrid : ComponentBase
 
         var totalItems = await query.CountAsync(token);
 
+        query = BillId is null
+            ? query.OrderBy(i => i.DueDate)
+            : query.OrderByDescending(i => i.ReferenceMonth);
+
         var items = await query
-            .OrderBy(i => i.DueDate)
             .Skip(state.Page * state.PageSize)
             .Take(state.PageSize)
             .ToListAsync(token);

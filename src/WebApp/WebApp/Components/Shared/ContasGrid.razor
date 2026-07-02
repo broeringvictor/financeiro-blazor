@@ -13,7 +13,8 @@
     </MudButton>
 </MudStack>
 
-<MudDataGrid T="Bill" Items="_bills" Hover="true" Dense="true" Striped="true">
+<MudDataGrid T="Bill" Items="_bills" Hover="true" Dense="true" Striped="true"
+             RowClick="@(e => VerFaturas(e.Item))" RowStyle="cursor:pointer">
     <Columns>
         <PropertyColumn Property="x => x.Name" Title="Nome" />
         <PropertyColumn Property="x => x.BillerName" Title="Fornecedor" />
@@ -43,21 +44,18 @@
         </TemplateColumn>
         <TemplateColumn Title="Ações" CellStyle="white-space:nowrap">
             <CellTemplate>
-                <MudIconButton Icon="@Icons.Material.Filled.Search"
-                               Size="Size.Small"
-                               Color="Color.Info"
-                               Title="Buscar fatura agora"
-                               OnClick="@(() => BuscarConta(context.Item))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Edit"
-                               Size="Size.Small"
-                               Color="Color.Primary"
-                               Title="Editar"
-                               OnClick="@(() => EditarConta(context.Item))" />
-                <MudIconButton Icon="@Icons.Material.Filled.Delete"
-                               Size="Size.Small"
-                               Color="Color.Error"
-                               Title="Excluir"
-                               OnClick="@(() => ExcluirConta(context.Item))" />
+                <div @onclick:stopPropagation="true">
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   Size="Size.Small"
+                                   Color="Color.Primary"
+                                   Title="Editar"
+                                   OnClick="@(() => EditarConta(context.Item))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Size="Size.Small"
+                                   Color="Color.Error"
+                                   Title="Excluir"
+                                   OnClick="@(() => ExcluirConta(context.Item))" />
+                </div>
             </CellTemplate>
         </TemplateColumn>
     </Columns>

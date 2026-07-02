@@ -1,6 +1,9 @@
 ﻿@inherits LayoutComponentBase
 
 <MudThemeProvider />
+<MudPopoverProvider @rendermode="InteractiveServer" />
+<MudDialogProvider @rendermode="InteractiveServer" />
+<MudSnackbarProvider @rendermode="InteractiveServer" />
 <MudLayout>
     <MudAppBar Elevation="1">
         <MudStaticNavDrawerToggle DrawerId="nav-drawer" @bind-Open="_drawerOpen" Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" />
@@ -9,7 +12,7 @@
     <MudDrawer id="nav-drawer" @bind-Open="_drawerOpen" ClipMode="DrawerClipMode.Always" Elevation="2">
         <NavMenu />
     </MudDrawer>
-    <MudMainContent Class="pt-16 pa-4">
+    <MudMainContent Class="pa-16">
         @Body
     </MudMainContent>
 </MudLayout>

@@ -1,5 +1,6 @@
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Services.Pdf;
 using WebApp.Data;
 using WebApp.Models;
@@ -12,6 +13,9 @@ namespace Tests.WebApp.Services;
 public class IngestaoFaturaServiceTests
 {
     private const string UserId = "user-123";
+
+    private static IngestaoFaturaService NovoServico(ApplicationDbContext db) =>
+        new(db, NullLogger<IngestaoFaturaService>.Instance);
 
     private static (ApplicationDbContext db, SqliteConnection conn) NovoContexto()
     {
@@ -45,7 +49,7 @@ public class IngestaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var sut = new IngestaoFaturaService(db);
+        var sut = NovoServico(db);
 
         var invoice = await sut.UpsertAsync(UserId, DadosCelesc());
 
@@ -61,7 +65,7 @@ public class IngestaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var sut = new IngestaoFaturaService(db);
+        var sut = NovoServico(db);
 
         await sut.UpsertAsync(UserId, DadosCelesc());
         await sut.UpsertAsync(UserId, DadosCelesc() with { Valor = 200m });
@@ -80,7 +84,7 @@ public class IngestaoFaturaServiceTests
         var bill = CriarContaCelesc();
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
-        var sut = new IngestaoFaturaService(db);
+        var sut = NovoServico(db);
 
         var invoice = await sut.UpsertAsync(UserId, DadosCelesc());
 
@@ -95,13 +99,59 @@ public class IngestaoFaturaServiceTests
         using var __ = conn;
         db.Bills.Add(CriarContaCelesc());
         await db.SaveChangesAsync();
-        var sut = new IngestaoFaturaService(db);
+        var sut = NovoServico(db);
 
         await sut.UpsertAsync(UserId, DadosCelesc(messageId: null));
         await sut.UpsertAsync(UserId, DadosCelesc(messageId: null) with { Valor = 250m });
 
         Assert.Equal(1, await db.Invoices.CountAsync());
         Assert.Equal(250m, (await db.Invoices.SingleAsync()).Amount);
+    }
+
+    [Fact]
+    public async Task UpsertAsync_ContaValorFixo_ValorExtraidoDivergente_FicaNaoReconhecido()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(new Bill(
+            UserId, "Aluguel", "Imobiliária X", ETransactionCategory.Rent,
+            new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 5, new DateOnly(2026, 1, 5)),
+            fixedAmount: 1500m,
+            senderContains: "imobiliariax.com.br"));
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        var invoice = await sut.UpsertAsync(UserId, DadosCelesc() with
+        {
+            BillerName = "Imobiliária X",
+            Valor = 187.42m,
+        });
+
+        Assert.Equal(0m, invoice.Amount);
+    }
+
+    [Fact]
+    public async Task UpsertAsync_ContaValorFixo_ValorExtraidoBate_Confirma()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(new Bill(
+            UserId, "Aluguel", "Imobiliária X", ETransactionCategory.Rent,
+            new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 5, new DateOnly(2026, 1, 5)),
+            fixedAmount: 1500m,
+            senderContains: "imobiliariax.com.br"));
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        var invoice = await sut.UpsertAsync(UserId, DadosCelesc() with
+        {
+            BillerName = "Imobiliária X",
+            Valor = 1500m,
+        });
+
+        Assert.Equal(1500m, invoice.Amount);
     }
 
     [Fact]
@@ -112,7 +162,7 @@ public class IngestaoFaturaServiceTests
         using var __ = conn;
         db.Bills.Add(CriarContaCelesc());
         await db.SaveChangesAsync();
-        var sut = new IngestaoFaturaService(db);
+        var sut = NovoServico(db);
         var invoice = await sut.UpsertAsync(UserId, DadosCelesc());
 
         var tx = await sut.PagarAsync(invoice.Id, UserId);

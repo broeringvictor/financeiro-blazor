@@ -1,21 +1,11 @@
 @page "/contas"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 @using WebApp.Components.Shared
 
 <PageTitle>Contas</PageTitle>
 
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
-
-<AuthorizeView>
-    <Authorized>
-        @if (!string.IsNullOrEmpty(_userId))
-        {
-            <ContasGrid UserId="@_userId" />
-        }
-    </Authorized>
-    <NotAuthorized>
-        <MudAlert Severity="Severity.Info">Faça login para gerenciar suas contas.</MudAlert>
-    </NotAuthorized>
-</AuthorizeView>
+@if (!string.IsNullOrEmpty(_userId))
+{
+    <ContasGrid UserId="@_userId" />
+}

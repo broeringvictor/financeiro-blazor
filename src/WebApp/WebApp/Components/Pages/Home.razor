@@ -1,55 +1,47 @@
 ﻿@page "/"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 
 <PageTitle>Home</PageTitle>
 
-<MudPopoverProvider />
-<MudDialogProvider />
-<MudSnackbarProvider />
+@if (!string.IsNullOrEmpty(_userId))
+{
+    <FinanceSummaryPanel @ref="_resumo" UserId="@_userId" />
+}
 
-<AuthorizeView>
-    <Authorized>
-        <MudStack Row="true" Spacing="2" Class="mb-4">
-            <MudButton Variant="Variant.Filled"
-                       Color="Color.Primary"
-                       StartIcon="@Icons.Material.Filled.Add"
-                       OnClick="AbrirNovaTransacao">
-                Nova transação
-            </MudButton>
+<MudStack Row="true" Spacing="2" Class="mb-4">
+    <MudButton Variant="Variant.Filled"
+               Color="Color.Primary"
+               StartIcon="@Icons.Material.Filled.Add"
+               OnClick="AbrirNovaTransacao">
+        Nova transação
+    </MudButton>
 
-            <MudButton Variant="Variant.Outlined"
-                       Color="Color.Secondary"
-                       StartIcon="@Icons.Material.Filled.Search"
-                       OnClick="BuscarFaturaCelesc"
-                       Disabled="_buscando">
-                @(_buscando ? "Buscando..." : "Buscar fatura da Celesc")
-            </MudButton>
-        </MudStack>
 
-        @if (_buscando)
-        {
-            <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Class="mb-4" />
-        }
+</MudStack>
 
-        @if (!string.IsNullOrEmpty(_resultadoBusca))
-        {
-            <MudPaper Class="pa-4 mb-8" Elevation="1">
-                <MudText Typo="Typo.subtitle2" Class="mb-2">Resultado da busca</MudText>
-                <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@_resultadoBusca</MudText>
-            </MudPaper>
-        }
+@if (_buscando)
+{
+    <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Class="mb-4" />
+}
 
-        @if (!string.IsNullOrEmpty(_userId))
-        {
-            <div class="mb-8">
-                <TransactionsGrid @ref="_grid"
-                                  UserId="@_userId"
-                                  OnEdit="EditarTransacao"
-                                  OnDelete="ExcluirTransacao" />
-            </div>
-        }
-    </Authorized>
-</AuthorizeView>
+@if (!string.IsNullOrEmpty(_resultadoBusca))
+{
+    <MudPaper Class="pa-4 mb-8" Elevation="1">
+        <MudText Typo="Typo.subtitle2" Class="mb-2">Resultado da busca</MudText>
+        <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@_resultadoBusca</MudText>
+    </MudPaper>
+}
+
+@if (!string.IsNullOrEmpty(_userId))
+{
+    <div class="mb-8">
+        <TransactionsGrid @ref="_grid"
+                          UserId="@_userId"
+                          OnEdit="EditarTransacao"
+                          OnDelete="ExcluirTransacao" />
+    </div>
+}
 
 <MudAlert Severity="Severity.Normal" ContentAlignment="HorizontalAlignment.Start">
     You can find documentation and examples on our website here:
