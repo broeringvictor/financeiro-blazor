@@ -21,6 +21,10 @@
         <ProjectReference Include="..\..\Services\Services.csproj" />
         <ProjectReference Include="..\WebApp.Client\WebApp.Client.csproj" />
         <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.Server" Version="10.0.9" />
+        <!-- Sem isso, o restore em Linux (Docker) não traz o blazor.web.js (usado quando Server e
+             WebAssembly são combinados) — só funcionava em builds locais no Windows, onde esse
+             asset já estava no cache do NuGet de outra instalação/restauração anterior. -->
+        <PackageReference Include="Microsoft.AspNetCore.App.Internal.Assets" Version="10.0.9" />
         <PackageReference Include="Microsoft.AspNetCore.Diagnostics.EntityFrameworkCore" Version="10.0.9" />
         <PackageReference Include="Microsoft.AspNetCore.Identity.EntityFrameworkCore" Version="10.0.9" />
         <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="10.0.9" />
