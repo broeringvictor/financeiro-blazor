@@ -14,6 +14,9 @@ services:
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/app.db
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
       - OTEL_SERVICE_NAME=webapp
+      # Sem isso, o dashboard aceitaria telemetria de qualquer app não autenticado (ver
+      # https://aspire.dev/dashboard/security-considerations/#secure-api-endpoints).
+      - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=${ASPIRE_OTLP_APIKEY:?defina ASPIRE_OTLP_APIKEY no .env}
     volumes:
       - webapp-data:/app/data
     networks:
@@ -28,6 +31,8 @@ services:
     restart: unless-stopped
     environment:
       - DASHBOARD__FRONTEND__AUTHMODE=BrowserToken
+      - DASHBOARD__OTLP__AUTHMODE=ApiKey
+      - DASHBOARD__OTLP__PRIMARYAPIKEY=${ASPIRE_OTLP_APIKEY:?defina ASPIRE_OTLP_APIKEY no .env}
     ports:
       # Só em loopback: acesse via túnel SSH (ssh -L 18888:localhost:18888 seu-vps), nunca exposto direto.
       - "127.0.0.1:18888:18888"
