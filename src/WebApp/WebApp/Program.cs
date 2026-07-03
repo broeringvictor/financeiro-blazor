@@ -87,6 +87,14 @@ forwardedHeadersOptions.KnownNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
+// DIAGNÓSTICO TEMPORÁRIO — remover depois de investigar o bug do scheme http/https em prod.
+app.MapGet("/debug-scheme", (HttpContext ctx) => Results.Text(
+    $"Scheme={ctx.Request.Scheme} Host={ctx.Request.Host} " +
+    $"X-Forwarded-Proto={ctx.Request.Headers["X-Forwarded-Proto"]} " +
+    $"X-Forwarded-For={ctx.Request.Headers["X-Forwarded-For"]} " +
+    $"X-Forwarded-Host={ctx.Request.Headers["X-Forwarded-Host"]} " +
+    $"RemoteIp={ctx.Connection.RemoteIpAddress}"));
+
 // Cultura pt-BR fixa (separador decimal vírgula, R$, datas dd/MM) independente do locale do servidor.
 var supportedCultures = new[] { "pt-BR" };
 app.UseRequestLocalization(new RequestLocalizationOptions()
