@@ -64,9 +64,17 @@
                     <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
                                    Size="Size.Small"
                                    Color="Color.Default"
-                                   Title="Ver PDF"
+                                   title="Ver PDF"
                                    Href="@($"/faturas/{context.Item.Invoice.Id}/pdf")"
                                    Target="_blank" />
+                }
+                @if (context.Item.Invoice.Status != EInvoiceStatus.Paid)
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   Size="Size.Small"
+                                   Color="Color.Default"
+                                   title="Editar"
+                                   OnClick="@(() => OnEdit.InvokeAsync(context.Item.Invoice))" />
                 }
                 @if (context.Item.Invoice.Status == EInvoiceStatus.Pending)
                 {
@@ -74,19 +82,19 @@
                                    Size="Size.Small"
                                    Color="Color.Success"
                                    Disabled="@(context.Item.Invoice.Amount <= 0)"
-                                   Title="@(context.Item.Invoice.Amount <= 0 ? "Valor não reconhecido" : "Pagar")"
+                                   title="@(context.Item.Invoice.Amount <= 0 ? "Valor não reconhecido" : "Pagar")"
                                    OnClick="@(() => OnPay.InvokeAsync(context.Item.Invoice))" />
                     <MudIconButton Icon="@Icons.Material.Filled.Cancel"
                                    Size="Size.Small"
                                    Color="Color.Error"
-                                   Title="Cancelar"
+                                   title="Cancelar"
                                    OnClick="@(() => OnCancel.InvokeAsync(context.Item.Invoice))" />
                 }
                 <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                Size="Size.Small"
                                Color="Color.Error"
                                Disabled="@(context.Item.Invoice.Status == EInvoiceStatus.Paid)"
-                               Title="@(context.Item.Invoice.Status == EInvoiceStatus.Paid ? "Fatura paga não pode ser excluída" : "Excluir")"
+                               title="@(context.Item.Invoice.Status == EInvoiceStatus.Paid ? "Fatura paga não pode ser excluída" : "Excluir")"
                                OnClick="@(() => OnDelete.InvokeAsync(context.Item.Invoice))" />
             </CellTemplate>
         </TemplateColumn>

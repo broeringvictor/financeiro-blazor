@@ -10,6 +10,11 @@
              do WebApp, colidindo pelo nome (NETSDK1152). WebApp nunca lê o appsettings do Services
              em runtime (cada projeto só carrega o próprio), então não importa qual "vence". -->
         <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
+        <!-- NuGet.Packaging/NuGet.Protocol de baixa severidade, trazidos só pelo
+             Microsoft.VisualStudio.Web.CodeGeneration.Design (ferramenta de scaffolding usada
+             apenas em dev; não roda em produção nem é publicada). Sem versão mais nova disponível
+             que resolva a dependência transitiva. -->
+        <NoWarn>$(NoWarn);NU1901</NoWarn>
     </PropertyGroup>
 
 

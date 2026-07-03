@@ -133,6 +133,22 @@ public class Invoice : BaseModel
         }
     }
 
+    /// <summary>Correção manual de valor/datas (ex.: extração errada). Bloqueada para faturas já pagas.</summary>
+    public void EditarManualmente(decimal amount, DateOnly dueDate, DateOnly? issueDate)
+    {
+        if (Status == EInvoiceStatus.Paid)
+        {
+            throw new InvalidOperationException("Não é possível editar uma fatura já paga.");
+        }
+
+        EnsureAmountValid(amount);
+
+        Amount = amount;
+        DueDate = dueDate;
+        IssueDate = issueDate;
+        MarkAsUpdated();
+    }
+
     /// <summary>Registra o pagamento ligando a fatura a uma <see cref="Transaction"/> (1:1).</summary>
     public void RegisterPayment(Guid transactionId)
     {

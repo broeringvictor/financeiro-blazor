@@ -92,6 +92,35 @@ public partial class FaturasPanel : ComponentBase
         }
     }
 
+    private async Task EditarFatura(Invoice invoice)
+    {
+        var parameters = new DialogParameters<InvoiceFormDialog> { { x => x.Invoice, invoice } };
+        var options = new DialogOptions { CloseOnEscapeKey = true, MaxWidth = MaxWidth.ExtraSmall, FullWidth = true };
+
+        var dialog = await DialogService.ShowAsync<InvoiceFormDialog>("Editar fatura", parameters, options);
+        var result = await dialog.Result;
+
+        if (result is not { Canceled: false, Data: InvoiceFormDialog.Resultado dados })
+        {
+            return;
+        }
+
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<IngestaoFaturaService>();
+            await service.EditarAsync(invoice.Id, UserId, dados.Amount, dados.DueDate, dados.IssueDate);
+
+            Snackbar.Add("Fatura atualizada.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha ao editar a fatura {InvoiceId}.", invoice.Id);
+            Snackbar.Add("Não foi possível editar a fatura.", Severity.Error);
+        }
+    }
+
     private async Task ExcluirFatura(Invoice invoice)
     {
         var confirmado = await DialogService.ShowMessageBoxAsync(

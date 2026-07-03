@@ -25,6 +25,9 @@ public partial class InvoicesGrid : ComponentBase
     /// <summary>Disparado ao clicar em cancelar uma fatura.</summary>
     [Parameter] public EventCallback<Invoice> OnCancel { get; set; }
 
+    /// <summary>Disparado ao clicar em editar uma fatura (não paga).</summary>
+    [Parameter] public EventCallback<Invoice> OnEdit { get; set; }
+
     /// <summary>Disparado ao clicar em excluir uma fatura.</summary>
     [Parameter] public EventCallback<Invoice> OnDelete { get; set; }
 

@@ -118,6 +118,23 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db, ILogger<Inges
         return transaction;
     }
 
+    /// <summary>Corrige manualmente valor/vencimento/emissão de uma fatura ainda não paga.</summary>
+    public async Task EditarAsync(
+        Guid invoiceId,
+        string userId,
+        decimal amount,
+        DateOnly dueDate,
+        DateOnly? issueDate,
+        CancellationToken ct = default)
+    {
+        var invoice = await db.Invoices.FirstOrDefaultAsync(
+                          i => i.Id == invoiceId && i.UserId == userId && i.DeletedAt == null, ct)
+                      ?? throw new InvalidOperationException("Fatura não encontrada.");
+
+        invoice.EditarManualmente(amount, dueDate, issueDate);
+        await db.SaveChangesAsync(ct);
+    }
+
     /// <summary>Exclui (logicamente) a fatura e remove o PDF salvo em disco, se houver.</summary>
     public async Task ExcluirAsync(Guid invoiceId, string userId, CancellationToken ct = default)
     {
