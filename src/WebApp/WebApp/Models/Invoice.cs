@@ -161,8 +161,17 @@ public class Invoice : BaseModel
         }
     }
 
-    /// <summary>Exclusão lógica.</summary>
-    public void Delete() => MarkAsDeleted();
+    /// <summary>Exclusão lógica. Bloqueada para faturas já pagas (ficaria uma Transaction órfã, sem fatura/recibo).</summary>
+    public void Delete()
+    {
+        if (Status == EInvoiceStatus.Paid)
+        {
+            throw new InvalidOperationException(
+                "Não é possível excluir uma fatura já paga (a transação de pagamento ficaria sem referência).");
+        }
+
+        MarkAsDeleted();
+    }
 
     private static DateOnly NormalizeReference(DateOnly reference) =>
         new(reference.Year, reference.Month, 1);

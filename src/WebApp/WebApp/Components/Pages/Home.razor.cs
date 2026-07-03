@@ -27,9 +27,6 @@ public partial class Home : ComponentBase
     private FinanceSummaryPanel? _resumo;
     private string _userId = string.Empty;
 
-    private bool _buscando;
-    private string? _resultadoBusca;
-
     protected override async Task OnInitializedAsync()
     {
         _userId = await GetUserIdAsync();

@@ -20,19 +20,6 @@
 
 </MudStack>
 
-@if (_buscando)
-{
-    <MudProgressLinear Indeterminate="true" Color="Color.Secondary" Class="mb-4" />
-}
-
-@if (!string.IsNullOrEmpty(_resultadoBusca))
-{
-    <MudPaper Class="pa-4 mb-8" Elevation="1">
-        <MudText Typo="Typo.subtitle2" Class="mb-2">Resultado da busca</MudText>
-        <MudText Typo="Typo.body2" Style="white-space: pre-wrap;">@_resultadoBusca</MudText>
-    </MudPaper>
-}
-
 @if (!string.IsNullOrEmpty(_userId))
 {
     <div class="mb-8">

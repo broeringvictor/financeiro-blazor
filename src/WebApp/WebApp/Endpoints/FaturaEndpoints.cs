@@ -23,12 +23,23 @@ public static class FaturaEndpoints
             var invoice = await db.Invoices.AsNoTracking().FirstOrDefaultAsync(
                 i => i.Id == id && i.UserId == userId && i.DeletedAt == null);
 
-            if (invoice?.PdfPath is null || !File.Exists(invoice.PdfPath))
+            if (invoice?.PdfPath is null)
             {
                 return Results.NotFound();
             }
 
-            return Results.File(invoice.PdfPath, "application/pdf");
+            try
+            {
+                // Abre o arquivo já aqui (em vez de passar só o caminho pro Results.File) pra não
+                // deixar uma janela entre "existe" e "abrir" — se for excluído nesse meio-tempo
+                // (ex.: exclusão concorrente da fatura), cai no catch como 404 em vez de erro 500.
+                var stream = File.OpenRead(invoice.PdfPath);
+                return Results.File(stream, "application/pdf");
+            }
+            catch (IOException)
+            {
+                return Results.NotFound();
+            }
         }).RequireAuthorization();
 
         return app;

@@ -85,7 +85,8 @@
                 <MudIconButton Icon="@Icons.Material.Filled.Delete"
                                Size="Size.Small"
                                Color="Color.Error"
-                               Title="Excluir"
+                               Disabled="@(context.Item.Invoice.Status == EInvoiceStatus.Paid)"
+                               Title="@(context.Item.Invoice.Status == EInvoiceStatus.Paid ? "Fatura paga não pode ser excluída" : "Excluir")"
                                OnClick="@(() => OnDelete.InvokeAsync(context.Item.Invoice))" />
             </CellTemplate>
         </TemplateColumn>
