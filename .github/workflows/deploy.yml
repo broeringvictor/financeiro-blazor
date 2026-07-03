@@ -11,6 +11,12 @@ permissions:
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
+    env:
+      # O runner não tem o .env (gitignored). "build"/"push" nunca usam essa env var de fato
+      # (só o "up" na VPS, com o .env real, usa pra valer) — mas o compose interpola o arquivo
+      # inteiro antes de saber qual comando/serviço foi pedido, então precisa de algum valor
+      # aqui só pra não falhar o parse.
+      ASPIRE_OTLP_APIKEY: unused-in-ci-build
 
     steps:
       - uses: actions/checkout@v4
