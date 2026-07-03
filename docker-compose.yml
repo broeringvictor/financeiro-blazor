@@ -15,8 +15,10 @@ services:
       - webapp-data:/app/data
     networks:
       - internal
-      - proxy
-    # Não publica porta pro host: quem fala com o container é o nginx, pela rede "proxy".
+    ports:
+      # Caddy roda no host (systemd, não container) e faz reverse_proxy pra localhost:8081 —
+      # mesmo padrão do portfólio (que usa a 8080). Só loopback: não expõe fora do host.
+      - "127.0.0.1:8081:8080"
 
   aspire-dashboard:
     image: mcr.microsoft.com/dotnet/aspire-dashboard:latest
@@ -34,9 +36,3 @@ volumes:
 
 networks:
   internal:
-  # Rede onde o nginx (ou Nginx Proxy Manager) já roda no VPS — ajuste o nome para o que já existe
-  # no seu compose atual (ex.: "npm_default"). Se preferir, junte este arquivo ao compose existente
-  # em vez de mantê-lo separado, e remova esta rede "external".
-  proxy:
-    external: true
-    name: proxy

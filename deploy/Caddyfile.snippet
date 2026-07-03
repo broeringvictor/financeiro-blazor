@@ -1,0 +1,6 @@
+# Bloco a acrescentar em /etc/caddy/Caddyfile na VPS (mesmo arquivo que já serve
+# victorbroering.tech). Caddy emite/renova o certificado Let's Encrypt sozinho.
+
+fin.victorbroering.tech {
+    reverse_proxy localhost:8081
+}
