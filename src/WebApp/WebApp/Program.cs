@@ -76,9 +76,9 @@ using (var scope = app.Services.CreateScope())
 
 app.MapDefaultEndpoints();
 
-// Atrás de um reverse proxy (nginx) que termina o TLS: sem isso, UseHttpsRedirection/UseHsts
-// veem a requisição como HTTP e entram em loop de redirect. Confia no hop imediato (o proxy
-// está na mesma rede Docker, não exposto direto à internet).
+// Atrás de um reverse proxy (Caddy) que termina o TLS: sem isso, UseHttpsRedirection/UseHsts e o
+// redirect de login do Blazor (RedirectToLogin.razor -> NavigationManager) veem a requisição como
+// HTTP e geram links absolutos errados. Confia no hop imediato (o proxy não é exposto direto).
 var forwardedHeadersOptions = new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto,
@@ -87,13 +87,15 @@ forwardedHeadersOptions.KnownNetworks.Clear();
 forwardedHeadersOptions.KnownProxies.Clear();
 app.UseForwardedHeaders(forwardedHeadersOptions);
 
-// DIAGNÓSTICO TEMPORÁRIO — remover depois de investigar o bug do scheme http/https em prod.
-app.MapGet("/debug-scheme", (HttpContext ctx) => Results.Text(
-    $"Scheme={ctx.Request.Scheme} Host={ctx.Request.Host} " +
-    $"X-Forwarded-Proto={ctx.Request.Headers["X-Forwarded-Proto"]} " +
-    $"X-Forwarded-For={ctx.Request.Headers["X-Forwarded-For"]} " +
-    $"X-Forwarded-Host={ctx.Request.Headers["X-Forwarded-Host"]} " +
-    $"RemoteIp={ctx.Connection.RemoteIpAddress}"));
+// ForwardedHeaders sozinho não é suficiente: o NavigationManager do Blazor (usado por
+// RedirectToLogin.razor) constrói a URL absoluta do redirect por um caminho interno que não
+// reflete o Request.Scheme já corrigido acima. Como todo tráfego real chega via Caddy com TLS
+// (nunca http puro), força o scheme de forma incondicional logo na entrada do pipeline.
+app.Use(async (context, next) =>
+{
+    context.Request.Scheme = "https";
+    await next();
+});
 
 // Cultura pt-BR fixa (separador decimal vírgula, R$, datas dd/MM) independente do locale do servidor.
 var supportedCultures = new[] { "pt-BR" };
