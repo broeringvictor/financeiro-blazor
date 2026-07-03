@@ -5,6 +5,7 @@ using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using UglyToad.PdfPig;
+using UglyToad.PdfPig.Writer;
 
 namespace Services.Pdf;
 
@@ -63,6 +64,10 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
             return new FaturaInfo(null, null, null, $"Falha ao ler o PDF: {ex.Message}");
         }
 
+        // Achou e conseguiu abrir a fatura: regrava sem a senha, pra poder ser aberta depois sem
+        // precisar dela (ex.: visualização no navegador). Best-effort — não falha a extração.
+        SalvarSemSenha(caminhoPdf);
+
         var info = ExtrairDeTexto(texto);
 
         _logger.LogInformation(
@@ -71,6 +76,9 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
 
         return info;
     }
+
+    /// <summary>Texto bruto do PDF, sem tentar extrair campos — usado pelo fallback via agente de IA.</summary>
+    public string ObterTextoBruto(string caminhoPdf) => ExtrairTexto(caminhoPdf);
 
     /// <summary>Extrai valor/datas de um texto qualquer (PDF ou corpo de e-mail).</summary>
     public FaturaInfo ExtrairDeTexto(string? texto)
@@ -91,6 +99,40 @@ public sealed partial class FaturaPdfExtractor(PdfOptions options, ILogger<Fatur
     {
         var limpo = texto.Replace('\n', ' ').Replace('\r', ' ').Trim();
         return limpo.Length <= 300 ? limpo : limpo[..300];
+    }
+
+    /// <summary>
+    /// Reabre o PDF já com a senha e regrava o arquivo, no mesmo caminho, sem a proteção.
+    /// Não faz nada se não houver senha configurada (arquivo já está aberto).
+    /// </summary>
+    private void SalvarSemSenha(string caminhoPdf)
+    {
+        if (string.IsNullOrEmpty(options.Password))
+        {
+            return;
+        }
+
+        try
+        {
+            byte[] semSenha;
+            using (var doc = PdfDocument.Open(caminhoPdf, new ParsingOptions { Passwords = [options.Password] }))
+            using (var builder = new PdfDocumentBuilder())
+            {
+                for (var pagina = 1; pagina <= doc.NumberOfPages; pagina++)
+                {
+                    builder.AddPage(doc, pagina);
+                }
+
+                semSenha = builder.Build();
+            }
+
+            File.WriteAllBytes(caminhoPdf, semSenha);
+            _logger.LogInformation("[Tool] ExtrairDadosFatura: PDF regravado sem senha ({Caminho}).", caminhoPdf);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "[Tool] ExtrairDadosFatura: falha ao regravar o PDF sem senha ({Caminho}).", caminhoPdf);
+        }
     }
 
     private string ExtrairTexto(string caminhoPdf)

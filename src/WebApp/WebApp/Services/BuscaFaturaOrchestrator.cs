@@ -1,3 +1,4 @@
+using Services.Agents;
 using Services.Gmail;
 using Services.Pdf;
 using WebApp.Models;
@@ -7,12 +8,14 @@ namespace WebApp.Services;
 /// <summary>
 /// Fluxo determinístico de busca de fatura: pesquisa no Gmail, baixa o PDF, extrai os dados
 /// e registra a <see cref="Invoice"/>. Reutiliza as mesmas ferramentas do agente, mas sem o LLM,
-/// para um resultado previsível ao clicar o botão.
+/// para um resultado previsível ao clicar o botão. Só recorre ao agente de IA (<see cref="FaturaLlmFallbackExtractor"/>)
+/// como último recurso, quando a extração por regex não acha valor/vencimento.
 /// </summary>
 public sealed class BuscaFaturaOrchestrator(
     GmailServiceFactory gmailFactory,
     GmailOptions gmailOptions,
     FaturaPdfExtractor pdfExtractor,
+    FaturaLlmFallbackExtractor llmFallback,
     IngestaoFaturaService ingestao,
     ILoggerFactory loggerFactory)
 {
@@ -58,7 +61,7 @@ public sealed class BuscaFaturaOrchestrator(
             ? pdfExtractor.ExtrairDadosFatura(pdfPath)
             : new FaturaInfo(null, null, null, "Sem anexo PDF.");
 
-        // Fallback: se o PDF não rendeu valor/vencimento, tenta o corpo do e-mail.
+        // Fallback 1: se o PDF não rendeu valor/vencimento, tenta o corpo do e-mail.
         if (info.Valor is null || info.Vencimento is null)
         {
             var doCorpo = pdfExtractor.ExtrairDeTexto(detalhe.Corpo);
@@ -67,6 +70,28 @@ public sealed class BuscaFaturaOrchestrator(
                 info.Data ?? doCorpo.Data,
                 info.Vencimento ?? doCorpo.Vencimento,
                 info.Erro);
+        }
+
+        // Fallback 2 (último recurso): regex não achou tudo — pede pro agente de IA ler o texto bruto.
+        if (info.Valor is null || info.Vencimento is null)
+        {
+            var textoPdf = pdfPath is not null ? TentarLerTextoBruto(pdfPath) : null;
+            var textoCombinado = string.Join("\n\n", new[] { textoPdf, detalhe.Corpo }
+                .Where(t => !string.IsNullOrWhiteSpace(t)));
+
+            if (!string.IsNullOrWhiteSpace(textoCombinado))
+            {
+                _logger.LogInformation(
+                    "Extração determinística incompleta (e-mail {Id}); acionando o agente de IA como fallback.",
+                    email.Id);
+
+                var doAgente = await llmFallback.ExtrairAsync(textoCombinado, ct);
+                info = new FaturaInfo(
+                    info.Valor ?? doAgente.Valor,
+                    info.Data ?? doAgente.Data,
+                    info.Vencimento ?? doAgente.Vencimento,
+                    doAgente.Erro ?? info.Erro);
+            }
         }
 
         if (info.Valor is null)
@@ -89,5 +114,18 @@ public sealed class BuscaFaturaOrchestrator(
             invoice.Id, invoice.Amount, invoice.DueDate);
 
         return invoice;
+    }
+
+    private string? TentarLerTextoBruto(string pdfPath)
+    {
+        try
+        {
+            return pdfExtractor.ObterTextoBruto(pdfPath);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Falha ao reler o texto do PDF para o fallback de IA ({Caminho}).", pdfPath);
+            return null;
+        }
     }
 }

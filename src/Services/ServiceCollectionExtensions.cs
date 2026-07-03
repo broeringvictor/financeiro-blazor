@@ -30,6 +30,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<FaturaPdfExtractor>();
         services.AddSingleton<ContaAgentFactory>();
         services.AddSingleton<AgentAccessor>();
+        services.AddSingleton<FaturaLlmFallbackExtractor>();
 
         return services;
     }

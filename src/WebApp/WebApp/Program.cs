@@ -8,6 +8,7 @@ using MudBlazor.Services;
 using WebApp.Components;
 using WebApp.Components.Account;
 using WebApp.Data;
+using WebApp.Endpoints;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -124,5 +125,7 @@ app.MapRazorComponents<App>()
 
 // Add additional endpoints required by the Identity /Account Razor components.
 app.MapAdditionalIdentityEndpoints();
+
+app.MapFaturaEndpoints();
 
 app.Run();

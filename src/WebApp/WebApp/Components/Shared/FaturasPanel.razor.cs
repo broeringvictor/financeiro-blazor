@@ -92,5 +92,34 @@ public partial class FaturasPanel : ComponentBase
         }
     }
 
+    private async Task ExcluirFatura(Invoice invoice)
+    {
+        var confirmado = await DialogService.ShowMessageBoxAsync(
+            "Excluir fatura",
+            "Deseja excluir esta fatura? O PDF salvo (se houver) também será apagado. Esta ação não pode ser desfeita.",
+            yesText: "Excluir",
+            cancelText: "Voltar");
+
+        if (confirmado != true)
+        {
+            return;
+        }
+
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var service = scope.ServiceProvider.GetRequiredService<IngestaoFaturaService>();
+            await service.ExcluirAsync(invoice.Id, UserId);
+
+            Snackbar.Add("Fatura excluída.", Severity.Success);
+            await ReloadAsync();
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha ao excluir a fatura {InvoiceId}.", invoice.Id);
+            Snackbar.Add("Não foi possível excluir a fatura.", Severity.Error);
+        }
+    }
+
     private Task ReloadAsync() => _grid?.ReloadAsync() ?? Task.CompletedTask;
 }

@@ -77,26 +77,21 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db, ILogger<Inges
     }
 
     /// <summary>
-    /// Para contas de valor fixo, confirma o valor extraído contra <see cref="Bill.FixedAmount"/>.
-    /// Se divergir, descarta o valor extraído (fica como "não reconhecido") em vez de gravar um número
-    /// possivelmente errado — o texto bruto continua salvo para conferência manual.
+    /// <see cref="Bill.FixedAmount"/> é só uma referência para previsão de gastos — o valor extraído da
+    /// fatura sempre prevalece e nunca é descartado por divergir dele. Só loga quando diverge, pra
+    /// facilitar notar contas com FixedAmount desatualizado.
     /// </summary>
     private decimal? ValidarValor(Bill? bill, decimal? valorExtraido)
     {
-        if (bill?.FixedAmount is not { } fixo || valorExtraido is not { } extraido)
+        if (bill?.FixedAmount is { } fixo && valorExtraido is { } extraido
+            && Math.Abs(extraido - fixo) > ToleranciaValorFixo)
         {
-            return valorExtraido;
+            logger.LogInformation(
+                "Valor extraído (R$ {Extraido}) diverge do valor fixo cadastrado para '{Conta}' (R$ {Fixo}); usando o valor extraído mesmo assim.",
+                extraido, bill.Name, fixo);
         }
 
-        if (Math.Abs(extraido - fixo) <= ToleranciaValorFixo)
-        {
-            return extraido;
-        }
-
-        logger.LogWarning(
-            "Valor extraído (R$ {Extraido}) diverge do valor fixo cadastrado para '{Conta}' (R$ {Fixo}); fatura ficará como não reconhecida para revisão manual.",
-            extraido, bill.Name, fixo);
-        return null;
+        return valorExtraido;
     }
 
     /// <summary>Quita a fatura: cria uma Transaction (Expense) e liga-a à fatura (1:1).</summary>
@@ -121,6 +116,33 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db, ILogger<Inges
         await db.SaveChangesAsync(ct);
 
         return transaction;
+    }
+
+    /// <summary>Exclui (logicamente) a fatura e remove o PDF salvo em disco, se houver.</summary>
+    public async Task ExcluirAsync(Guid invoiceId, string userId, CancellationToken ct = default)
+    {
+        var invoice = await db.Invoices.FirstOrDefaultAsync(
+                          i => i.Id == invoiceId && i.UserId == userId && i.DeletedAt == null, ct)
+                      ?? throw new InvalidOperationException("Fatura não encontrada.");
+
+        var pdfPath = invoice.PdfPath;
+
+        invoice.Delete();
+        await db.SaveChangesAsync(ct);
+
+        if (!string.IsNullOrWhiteSpace(pdfPath) && File.Exists(pdfPath))
+        {
+            try
+            {
+                File.Delete(pdfPath);
+            }
+            catch (Exception ex)
+            {
+                // A exclusão da fatura já foi persistida; falha ao apagar o arquivo não deve
+                // reverter isso — só sobra um PDF órfão em disco.
+                logger.LogWarning(ex, "Falha ao apagar o PDF da fatura {InvoiceId} ({Caminho}).", invoiceId, pdfPath);
+            }
+        }
     }
 
     private async Task<Bill?> MatchBillAsync(string userId, FaturaExtraida dados, CancellationToken ct)

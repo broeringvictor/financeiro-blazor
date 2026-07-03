@@ -25,6 +25,9 @@ public partial class InvoicesGrid : ComponentBase
     /// <summary>Disparado ao clicar em cancelar uma fatura.</summary>
     [Parameter] public EventCallback<Invoice> OnCancel { get; set; }
 
+    /// <summary>Disparado ao clicar em excluir uma fatura.</summary>
+    [Parameter] public EventCallback<Invoice> OnDelete { get; set; }
+
     /// <summary>Linha do grid: a fatura + o nome da conta associada.</summary>
     public sealed record InvoiceRow(Invoice Invoice, string? BillName);
 

@@ -59,6 +59,15 @@
         </PropertyColumn>
         <TemplateColumn Title="Ações" Sortable="false" Filterable="false" CellStyle="white-space:nowrap">
             <CellTemplate>
+                @if (!string.IsNullOrEmpty(context.Item.Invoice.PdfPath))
+                {
+                    <MudIconButton Icon="@Icons.Material.Filled.PictureAsPdf"
+                                   Size="Size.Small"
+                                   Color="Color.Default"
+                                   Title="Ver PDF"
+                                   Href="@($"/faturas/{context.Item.Invoice.Id}/pdf")"
+                                   Target="_blank" />
+                }
                 @if (context.Item.Invoice.Status == EInvoiceStatus.Pending)
                 {
                     <MudIconButton Icon="@Icons.Material.Filled.Payments"
@@ -73,6 +82,11 @@
                                    Title="Cancelar"
                                    OnClick="@(() => OnCancel.InvokeAsync(context.Item.Invoice))" />
                 }
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Size="Size.Small"
+                               Color="Color.Error"
+                               Title="Excluir"
+                               OnClick="@(() => OnDelete.InvokeAsync(context.Item.Invoice))" />
             </CellTemplate>
         </TemplateColumn>
     </Columns>
