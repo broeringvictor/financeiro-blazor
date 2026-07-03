@@ -1,5 +1,6 @@
 services:
   webapp:
+    image: ghcr.io/broeringvictor/financeiro-blazor-webapp:latest
     build:
       context: .
       dockerfile: src/WebApp/WebApp/Dockerfile

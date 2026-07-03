@@ -1,7 +1,10 @@
 # syntax=docker/dockerfile:1
 # Build a partir da raiz do repositório: docker build -f src/WebApp/WebApp/Dockerfile .
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
+# Tags fixas (não "10.0"/"latest"): a Microsoft atualiza as tags flutuantes in-place a cada patch,
+# então um rebuild em outra data pegaria um .NET diferente do testado sem avisar. Bump manual quando
+# quiser atualizar (confira as tags em https://mcr.microsoft.com/v2/dotnet/sdk/tags/list).
+FROM mcr.microsoft.com/dotnet/sdk:10.0.301 AS build
 WORKDIR /src
 
 # Copia só os .csproj primeiro para cachear o restore em builds subsequentes.
@@ -16,7 +19,7 @@ COPY src/Services/ src/Services/
 COPY src/WebApp/ src/WebApp/
 RUN dotnet publish src/WebApp/WebApp/WebApp.csproj -c Release -o /app/publish --no-restore
 
-FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS runtime
+FROM mcr.microsoft.com/dotnet/aspnet:10.0.9 AS runtime
 WORKDIR /app
 
 # curl só para o HEALTHCHECK abaixo; a imagem aspnet base não traz nenhum cliente HTTP.
