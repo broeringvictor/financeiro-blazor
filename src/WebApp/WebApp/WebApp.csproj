@@ -6,6 +6,10 @@
         <ImplicitUsings>enable</ImplicitUsings>
         <UserSecretsId>aspnet-WebApp-bbba4d02-676b-4721-ba5d-489033588c13</UserSecretsId>
         <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+        <!-- O publish arrasta appsettings*.json do Services (ProjectReference) pra mesma pasta dos
+             do WebApp, colidindo pelo nome (NETSDK1152). WebApp nunca lê o appsettings do Services
+             em runtime (cada projeto só carrega o próprio), então não importa qual "vence". -->
+        <ErrorOnDuplicatePublishOutputFiles>false</ErrorOnDuplicatePublishOutputFiles>
     </PropertyGroup>
 
 
