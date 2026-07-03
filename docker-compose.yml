@@ -6,7 +6,10 @@ services:
       dockerfile: src/WebApp/WebApp/Dockerfile
     restart: unless-stopped
     env_file:
-      - .env
+      # Opcional: só existe na VPS (onde o compose faz "up"). No runner do CI, "build"/"push" nem
+      # precisam dele — sem "required: false" o compose falha só de não achar o arquivo.
+      - path: .env
+        required: false
     environment:
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/app.db
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
