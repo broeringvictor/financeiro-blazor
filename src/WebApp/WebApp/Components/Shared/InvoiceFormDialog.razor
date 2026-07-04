@@ -1,4 +1,6 @@
+@using WebApp.Extensions
 @using WebApp.Models
+@using WebApp.Models.Enums
 
 <MudDialog>
     <DialogContent>
@@ -9,6 +11,13 @@
             <MudDatePicker @bind-Date="_dueDate" Label="Vencimento" Variant="Variant.Outlined" />
 
             <MudDatePicker @bind-Date="_issueDate" Label="Emissão (opcional)" Variant="Variant.Outlined" Clearable="true" />
+
+            <MudSelect T="EInvoiceStatus" @bind-Value="_status" Label="Situação" Variant="Variant.Outlined">
+                @foreach (var status in _situacoesPermitidas)
+                {
+                    <MudSelectItem Value="status">@status.GetDisplayName()</MudSelectItem>
+                }
+            </MudSelect>
 
             @if (!string.IsNullOrEmpty(_error))
             {

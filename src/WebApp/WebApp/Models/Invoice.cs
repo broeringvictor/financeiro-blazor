@@ -133,12 +133,21 @@ public class Invoice : BaseModel
         }
     }
 
-    /// <summary>Correção manual de valor/datas (ex.: extração errada). Bloqueada para faturas já pagas.</summary>
-    public void EditarManualmente(decimal amount, DateOnly dueDate, DateOnly? issueDate)
+    /// <summary>
+    /// Correção manual de valor/datas/situação (ex.: extração errada). Bloqueada para faturas já
+    /// pagas — e não permite marcar como paga por aqui (isso exige o fluxo de pagamento, que cria
+    /// a Transaction vinculada).
+    /// </summary>
+    public void EditarManualmente(decimal amount, DateOnly dueDate, DateOnly? issueDate, EInvoiceStatus status)
     {
         if (Status == EInvoiceStatus.Paid)
         {
             throw new InvalidOperationException("Não é possível editar uma fatura já paga.");
+        }
+
+        if (status == EInvoiceStatus.Paid)
+        {
+            throw new InvalidOperationException("Não é possível marcar como paga por aqui; use a opção \"Pagar\".");
         }
 
         EnsureAmountValid(amount);
@@ -146,6 +155,7 @@ public class Invoice : BaseModel
         Amount = amount;
         DueDate = dueDate;
         IssueDate = issueDate;
+        Status = status;
         MarkAsUpdated();
     }
 

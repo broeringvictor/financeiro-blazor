@@ -109,7 +109,7 @@ public partial class FaturasPanel : ComponentBase
         {
             await using var scope = ScopeFactory.CreateAsyncScope();
             var service = scope.ServiceProvider.GetRequiredService<IngestaoFaturaService>();
-            await service.EditarAsync(invoice.Id, UserId, dados.Amount, dados.DueDate, dados.IssueDate);
+            await service.EditarAsync(invoice.Id, UserId, dados.Amount, dados.DueDate, dados.IssueDate, dados.Status);
 
             Snackbar.Add("Fatura atualizada.", Severity.Success);
             await ReloadAsync();
