@@ -61,6 +61,14 @@ public class Bill : BaseModel
         private set => field = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
     }
 
+    /// <summary>Chave/conta Pix do fornecedor, para contas pagas manualmente (sem boleto por e-mail).</summary>
+    [DisplayName("Chave Pix do fornecedor")]
+    public string? PixKey
+    {
+        get;
+        private set => field = string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+    }
+
     /// <summary>Faturas (cobranças concretas) emitidas para esta conta (1:N).</summary>
     public ICollection<Invoice> Invoices { get; private set; } = new List<Invoice>();
 
@@ -76,7 +84,8 @@ public class Bill : BaseModel
         RecurrenceRule recurrence,
         decimal? fixedAmount = null,
         bool autoSearch = false,
-        string? searchQuery = null)
+        string? searchQuery = null,
+        string? pixKey = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentNullException.ThrowIfNull(recurrence);
@@ -91,6 +100,7 @@ public class Bill : BaseModel
         FixedAmount = fixedAmount;
         AutoSearch = autoSearch;
         SearchQuery = searchQuery;
+        PixKey = pixKey;
     }
 
     /// <summary>Aplica apenas os campos informados; marca como atualizada se algo mudou.</summary>
@@ -102,7 +112,8 @@ public class Bill : BaseModel
         decimal? fixedAmount = null,
         bool? active = null,
         bool? autoSearch = null,
-        string? searchQuery = null)
+        string? searchQuery = null,
+        string? pixKey = null)
     {
         if (category is { } cat)
             EnsureExpenseCategory(cat);
@@ -156,6 +167,12 @@ public class Bill : BaseModel
         if (searchQuery is not null && SearchQuery != (string.IsNullOrWhiteSpace(searchQuery) ? null : searchQuery.Trim()))
         {
             SearchQuery = searchQuery;
+            hasChanges = true;
+        }
+
+        if (pixKey is not null && PixKey != (string.IsNullOrWhiteSpace(pixKey) ? null : pixKey.Trim()))
+        {
+            PixKey = pixKey;
             hasChanges = true;
         }
 

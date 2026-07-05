@@ -41,6 +41,11 @@
                           Variant="Variant.Outlined"
                           Lines="2" />
 
+            <MudTextField @bind-Value="_pixKey"
+                          Label="Chave Pix do fornecedor (opcional)"
+                          HelperText="Útil pra contas pagas manualmente, sem boleto por e-mail"
+                          Variant="Variant.Outlined" />
+
             <MudSwitch @bind-Value="_autoSearch" Label="Busca automática" Color="Color.Primary" />
 
             @if (Bill is not null)
@@ -82,6 +87,7 @@
     private DateTime? _endDate;
     private decimal? _fixedAmount;
     private string? _searchQuery;
+    private string? _pixKey;
     private bool _autoSearch;
     private bool _active = true;
     private string? _error;
@@ -103,6 +109,7 @@
         _endDate = Bill.Recurrence.EndDate?.ToDateTime(TimeOnly.MinValue);
         _fixedAmount = Bill.FixedAmount;
         _searchQuery = Bill.SearchQuery;
+        _pixKey = Bill.PixKey;
         _autoSearch = Bill.AutoSearch;
         _active = Bill.Active;
     }
@@ -123,13 +130,13 @@
             if (Bill is null)
             {
                 var nova = new Bill(UserId, _name, _billerName, _category, recurrence,
-                    _fixedAmount, _autoSearch, _searchQuery);
+                    _fixedAmount, _autoSearch, _searchQuery, _pixKey);
                 MudDialog.Close(DialogResult.Ok(nova));
             }
             else
             {
                 Bill.Edit(_name, _billerName, _category, recurrence, _fixedAmount,
-                    _active, _autoSearch, _searchQuery);
+                    _active, _autoSearch, _searchQuery, _pixKey);
                 MudDialog.Close(DialogResult.Ok(Bill));
             }
         }

@@ -17,7 +17,15 @@
              RowClick="@(e => VerFaturas(e.Item))" RowStyle="cursor:pointer">
     <Columns>
         <PropertyColumn Property="x => x.Name" Title="Nome" />
-        <PropertyColumn Property="x => x.BillerName" Title="Fornecedor" />
+        <PropertyColumn Property="x => x.BillerName" Title="Fornecedor">
+            <CellTemplate>
+                @context.Item.BillerName
+                @if (!string.IsNullOrEmpty(context.Item.PixKey))
+                {
+                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">Pix: @context.Item.PixKey</MudText>
+                }
+            </CellTemplate>
+        </PropertyColumn>
         <PropertyColumn Property="x => x.Category" Title="Categoria">
             <CellTemplate>@context.Item.Category.GetDisplayName()</CellTemplate>
         </PropertyColumn>
