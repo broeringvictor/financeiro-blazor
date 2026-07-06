@@ -9,7 +9,8 @@
     </PropertyGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\Services\Services.csproj" />
+      <!-- Services não roda mais como recurso do AppHost; entra só transitivamente (o WebApp o
+           referencia como biblioteca). Prod não tinha container "services", então dev agora espelha. -->
       <ProjectReference Include="..\WebApp\WebApp\WebApp.csproj" />
     </ItemGroup>
 

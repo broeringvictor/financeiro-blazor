@@ -46,16 +46,6 @@ var evolution = builder.AddContainer("evolution-api", "evoapicloud/evolution-api
 // SERVER_URL = o próprio endpoint (a Evolution usa pra montar URLs de QR code/mídia).
 evolution.WithEnvironment("SERVER_URL", evolution.GetEndpoint("http"));
 
-// Worker em background (varredura periódica de faturas). Sem endpoints HTTP.
-// As env vars com "__" sobrescrevem a configuração (Agente:ApiKey, Gmail:ClientId, ...).
-builder.AddProject<Projects.Services>("services")
-    .WithEnvironment("APPHOST_PID", appHostPid)
-    .WithEnvironment("Agente__ApiKey", anthropicApiKey)
-    .WithEnvironment("Gmail__ClientId", gmailClientId)
-    .WithEnvironment("Gmail__ClientSecret", gmailClientSecret)
-    .WithEnvironment("Gmail__RefreshToken", gmailRefreshToken)
-    .WithEnvironment("Pdf__Password", pdfPassword);
-
 // Front-end Blazor. Roda o agente no próprio processo, então também recebe as credenciais.
 // O alerta de vencimentos por WhatsApp vive aqui (o WebApp tem o banco de faturas e é o que roda
 // em produção), então recebe o endpoint da Evolution + o segredo compartilhado.
