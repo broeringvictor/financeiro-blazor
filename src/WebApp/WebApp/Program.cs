@@ -1,5 +1,6 @@
 using Financeiro.ServiceDefaults;
 using Services;
+using Services.WhatsApp;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -42,6 +43,14 @@ var geracaoFaturasOptions = builder.Configuration
     .Get<WebApp.Services.GeracaoFaturaOptions>() ?? new WebApp.Services.GeracaoFaturaOptions();
 builder.Services.AddSingleton(geracaoFaturasOptions);
 builder.Services.AddHostedService<WebApp.Services.GeracaoFaturasWorker>();
+
+// Alerta diário de vencimentos por WhatsApp (cliente Evolution + worker; seção "VencimentoAlerta").
+builder.Services.AddEvolutionWhatsApp(builder.Configuration);
+var vencimentoAlertaOptions = builder.Configuration
+    .GetSection("VencimentoAlerta")
+    .Get<WebApp.Services.VencimentoAlertaOptions>() ?? new WebApp.Services.VencimentoAlertaOptions();
+builder.Services.AddSingleton(vencimentoAlertaOptions);
+builder.Services.AddHostedService<WebApp.Services.VencimentoAlertaWorker>();
 
 // Add MudBlazor services
 builder.Services.AddMudServices();

@@ -20,6 +20,12 @@ services:
       # Sem isso, o dashboard aceitaria telemetria de qualquer app não autenticado (ver
       # https://aspire.dev/dashboard/security-considerations/#secure-api-endpoints).
       - OTEL_EXPORTER_OTLP_HEADERS=x-otlp-api-key=${ASPIRE_OTLP_APIKEY:?defina ASPIRE_OTLP_APIKEY no .env}
+      # Alerta de vencimentos por WhatsApp: fala com a Evolution pela rede interna (nunca exposta).
+      # ApiKey = mesmo segredo do AUTHENTICATION_API_KEY da Evolution (a "senha compartilhada").
+      - Evolution__BaseUrl=http://evolution-api:8080
+      - Evolution__ApiKey=${EVOLUTION_API_KEY:?defina EVOLUTION_API_KEY no .env}
+      - Evolution__Instance=${EVOLUTION_INSTANCE:-financeiro}
+      - Evolution__RecipientNumber=${EVOLUTION_RECIPIENT_NUMBER:?defina EVOLUTION_RECIPIENT_NUMBER no .env}
     volumes:
       - webapp-data:/app/data
     networks:
@@ -42,8 +48,63 @@ services:
     networks:
       - internal
 
+  # WhatsApp: Evolution API v2 + Postgres e Redis dedicados (não reaproveita o SQLite do webapp).
+  evolution-api:
+    image: evoapicloud/evolution-api:v2.3.7
+    restart: unless-stopped
+    depends_on:
+      evolution-postgres:
+        condition: service_healthy
+    environment:
+      # URL pública por onde a Evolution monta links de mídia/webhook. Ajuste pro domínio real
+      # servido pelo Caddy (ex.: https://evolution.seudominio.com).
+      - SERVER_URL=${EVOLUTION_SERVER_URL:?defina EVOLUTION_SERVER_URL no .env}
+      # Chave mestra da API (header "apikey"). Gere algo aleatório, ex.: openssl rand -hex 32.
+      - AUTHENTICATION_API_KEY=${EVOLUTION_API_KEY:?defina EVOLUTION_API_KEY no .env}
+      # Persistência no Postgres (sem isso, instâncias/sessões se perdem no redeploy).
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://evolution:${EVOLUTION_POSTGRES_PASSWORD:?defina EVOLUTION_POSTGRES_PASSWORD no .env}@evolution-postgres:5432/evolution?schema=public
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE=true
+      - DATABASE_SAVE_MESSAGE_UPDATE=true
+      - DATABASE_SAVE_DATA_CONTACTS=true
+      - DATABASE_SAVE_DATA_CHATS=true
+      - DATABASE_SAVE_DATA_LABELS=true
+      - DATABASE_SAVE_DATA_HISTORIC=true
+      # 1 usuário, envio simples: cache local basta (sem Redis, menos peças pra manter).
+      - CACHE_REDIS_ENABLED=false
+      - CACHE_LOCAL_ENABLED=true
+    volumes:
+      - evolution-instances:/evolution/instances
+    networks:
+      - internal
+    ports:
+      # Só loopback: o Caddy do host faz reverse_proxy pra localhost:8082 (mesmo padrão do webapp).
+      - "127.0.0.1:8082:8080"
+
+  evolution-postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=evolution
+      - POSTGRES_PASSWORD=${EVOLUTION_POSTGRES_PASSWORD:?defina EVOLUTION_POSTGRES_PASSWORD no .env}
+      - POSTGRES_DB=evolution
+    volumes:
+      - evolution-postgres-data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evolution -d evolution"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
 volumes:
   webapp-data:
+  evolution-instances:
+  evolution-postgres-data:
 
 networks:
   internal:
