@@ -39,4 +39,12 @@ public static class TransactionCategories
     /// <summary>Indica se a categoria pertence ao tipo.</summary>
     public static bool Belongs(ETransactionTypes type, ETransactionCategory category) =>
         For(type).Contains(category);
+
+    /// <summary>Todos os pares (tipo, categoria), na ordem de declaração. Usado pelo seed inicial de categorias.</summary>
+    public static IEnumerable<(ETransactionTypes Type, ETransactionCategory Category)> All =>
+        ByType.SelectMany(kv => kv.Value.Select(category => (kv.Key, category)));
+
+    /// <summary>Tipo ao qual a categoria (enum legado) pertence.</summary>
+    public static ETransactionTypes TypeOf(ETransactionCategory category) =>
+        ByType.First(kv => kv.Value.Contains(category)).Key;
 }

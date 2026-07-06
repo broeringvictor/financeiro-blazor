@@ -12,9 +12,29 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
     public DbSet<Invoice> Invoices => Set<Invoice>();
 
+    public DbSet<Category> Categories => Set<Category>();
+
     protected override void OnModelCreating(ModelBuilder builder)
     {
         base.OnModelCreating(builder);
+
+        builder.Entity<Category>(entity =>
+        {
+            entity.HasOne<ApplicationUser>()
+                .WithMany()
+                .HasForeignKey(c => c.UserId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Auto-relação principal → subcategorias. Restrict: não apaga em cascata as filhas.
+            entity.HasOne(c => c.Parent)
+                .WithMany(c => c.Children)
+                .HasForeignKey(c => c.ParentId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            entity.HasIndex(c => new { c.UserId, c.ParentId });
+            entity.Ignore(c => c.IsRoot);
+        });
 
         builder.Entity<Transaction>(entity =>
         {
@@ -23,6 +43,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
                 .HasForeignKey(t => t.UserId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
+
+            // Categoria legada preservada na coluna "Category" para o backfill (removida numa migração futura).
+            entity.Property(t => t.LegacyCategory).HasColumnName("Category");
+
+            entity.HasOne(t => t.Category)
+                .WithMany()
+                .HasForeignKey(t => t.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(t => t.UserId);
         });
@@ -37,6 +65,14 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
 
             // Recorrência como owned type (sem tabela própria).
             entity.OwnsOne(b => b.Recurrence);
+
+            // Categoria legada preservada na coluna "Category" para o backfill (removida numa migração futura).
+            entity.Property(b => b.LegacyCategory).HasColumnName("Category");
+
+            entity.HasOne(b => b.Category)
+                .WithMany()
+                .HasForeignKey(b => b.CategoryId)
+                .OnDelete(DeleteBehavior.Restrict);
 
             entity.HasIndex(b => b.UserId);
             entity.HasIndex(b => b.Active);
@@ -63,13 +99,17 @@ public class ApplicationDbContext(DbContextOptions<ApplicationDbContext> options
             entity.HasIndex(i => new { i.UserId, i.DueDate });
             entity.HasIndex(i => i.Status);
 
-            // Dedupe: um e-mail só vira uma fatura.
+            // Dedupe: um e-mail só vira uma fatura. Ignora faturas excluídas logicamente, senão
+            // reprocessar o mesmo e-mail depois de excluir a fatura colidiria com o índice único.
             entity.HasIndex(i => i.SourceEmailMessageId)
                 .IsUnique()
-                .HasFilter("\"SourceEmailMessageId\" IS NOT NULL");
+                .HasFilter("\"SourceEmailMessageId\" IS NOT NULL AND \"DeletedAt\" IS NULL");
 
-            // Dedupe: uma fatura por conta/competência.
-            entity.HasIndex(i => new { i.BillId, i.ReferenceMonth }).IsUnique();
+            // Dedupe: uma fatura por conta/competência. Ignora faturas excluídas logicamente, para
+            // permitir recriar a fatura de uma competência cuja fatura anterior foi excluída.
+            entity.HasIndex(i => new { i.BillId, i.ReferenceMonth })
+                .IsUnique()
+                .HasFilter("\"DeletedAt\" IS NULL");
 
             entity.Ignore(i => i.IsOverdue);
         });

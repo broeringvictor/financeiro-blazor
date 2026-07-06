@@ -21,6 +21,9 @@ builder.Services.AddContaAgent(builder.Configuration);
 builder.Services.AddScoped<WebApp.Services.IngestaoFaturaService>();
 builder.Services.AddScoped<WebApp.Services.BuscaFaturaOrchestrator>();
 
+// Gestão de categorias (árvore principal → subcategoria, CRUD e seed/backfill dos padrões).
+builder.Services.AddScoped<WebApp.Services.CategoryService>();
+
 // Agregações do dashboard (saldo, gastos por mês, previsão de gastos).
 builder.Services.AddScoped<WebApp.Services.FinanceSummaryService>();
 
@@ -81,6 +84,9 @@ var app = builder.Build();
 using (var scope = app.Services.CreateScope())
 {
     scope.ServiceProvider.GetRequiredService<ApplicationDbContext>().Database.Migrate();
+
+    // Seed das categorias padrão + backfill das transações/contas legadas (enum → CategoryId).
+    await scope.ServiceProvider.GetRequiredService<WebApp.Services.CategoryService>().SeedAllUsersAsync();
 }
 
 app.MapDefaultEndpoints();

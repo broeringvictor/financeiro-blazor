@@ -10,7 +10,10 @@ namespace WebApp.Services;
 /// Persiste faturas a partir dos dados extraídos pelo agente e registra o pagamento (cria a Transaction).
 /// Roda no WebApp, onde existe o usuário autenticado.
 /// </summary>
-public sealed class IngestaoFaturaService(ApplicationDbContext db, ILogger<IngestaoFaturaService> logger)
+public sealed class IngestaoFaturaService(
+    ApplicationDbContext db,
+    CategoryService categoryService,
+    ILogger<IngestaoFaturaService> logger)
 {
     /// <summary>Tolerância para considerar o valor extraído igual ao valor fixo cadastrado.</summary>
     private const decimal ToleranciaValorFixo = 0.01m;
@@ -97,8 +100,10 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db, ILogger<Inges
     /// <summary>Quita a fatura: cria uma Transaction (Expense) e liga-a à fatura (1:1).</summary>
     public async Task<Transaction> PagarAsync(Guid invoiceId, string userId, CancellationToken ct = default)
     {
-        var invoice = await db.Invoices.Include(i => i.Bill).FirstOrDefaultAsync(
-                          i => i.Id == invoiceId && i.UserId == userId && i.DeletedAt == null, ct)
+        var invoice = await db.Invoices
+                          .Include(i => i.Bill).ThenInclude(b => b!.Category)
+                          .FirstOrDefaultAsync(
+                              i => i.Id == invoiceId && i.UserId == userId && i.DeletedAt == null, ct)
                       ?? throw new InvalidOperationException("Fatura não encontrada.");
 
         if (invoice.Amount <= 0)
@@ -106,7 +111,8 @@ public sealed class IngestaoFaturaService(ApplicationDbContext db, ILogger<Inges
             throw new InvalidOperationException("Valor da fatura ainda não reconhecido; ajuste o valor antes de pagar.");
         }
 
-        var categoria = invoice.Bill?.Category ?? ETransactionCategory.Utilities;
+        var categoria = invoice.Bill?.Category
+                        ?? await categoryService.ResolveDefaultAsync(userId, ETransactionTypes.Expense, ct);
         var titulo = $"Fatura {invoice.Bill?.Name ?? "avulsa"}";
 
         var transaction = new Transaction(userId, ETransactionTypes.Expense, categoria, titulo, null, invoice.Amount);

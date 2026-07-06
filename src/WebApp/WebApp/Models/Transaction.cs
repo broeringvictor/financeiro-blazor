@@ -10,7 +10,7 @@ namespace WebApp.Models;
 /// O estado só é alterado pelos construtores e por <see cref="Edit"/>, que mantêm os invariantes.
 /// </summary>
 /// <remarks>
-/// Propriedades: <see cref="Type"/>, <see cref="Title"/>, <see cref="Description"/>, <see cref="Amount"/>.
+/// Propriedades: <see cref="Type"/>, <see cref="Category"/>, <see cref="Title"/>, <see cref="Description"/>, <see cref="Amount"/>.
 /// Métodos: construtor de criação, construtor de edição e <see cref="Edit"/> (atualização parcial).
 /// Identidade e datas (Id, CreatedAt, UpdatedAt, DeletedAt) vêm de <see cref="BaseModel"/>.
 /// </remarks>
@@ -25,10 +25,20 @@ public class Transaction : BaseModel
     [EnumDataType(typeof(ETransactionTypes), ErrorMessage = "Tipo de transação inválido.")]
     public ETransactionTypes Type { get; private set; }
 
-    /// <summary>Subcategoria; precisa pertencer ao <see cref="Type"/> (ver <see cref="TransactionCategories"/>).</summary>
-    [DisplayName("Categoria")]
-    [EnumDataType(typeof(ETransactionCategory), ErrorMessage = "Categoria inválida.")]
-    public ETransactionCategory Category { get; private set; }
+    /// <summary>
+    /// Categoria (principal ou subcategoria); precisa pertencer ao <see cref="Type"/>. Nula apenas em linhas
+    /// legadas ainda não migradas; toda transação criada pelo domínio recebe uma categoria obrigatória.
+    /// </summary>
+    public Guid? CategoryId { get; private set; }
+
+    /// <summary>Navegação para a categoria.</summary>
+    public Category? Category { get; private set; }
+
+    /// <summary>
+    /// Categoria legada (enum) da versão anterior, mantida apenas para o backfill de <see cref="CategoryId"/>.
+    /// Não é mais usada pelo domínio e será removida numa migração futura.
+    /// </summary>
+    public ETransactionCategory LegacyCategory { get; private set; }
 
     /// <summary>Título (5–150 caracteres); espaços nas extremidades são removidos.</summary>
     [DisplayName("Título")]
@@ -59,14 +69,14 @@ public class Transaction : BaseModel
     private Transaction() { }
 
     /// <summary>Cria uma nova transação para o usuário informado.</summary>
-    public Transaction(string userId, ETransactionTypes type, ETransactionCategory category, string title, string? description, decimal amount)
+    public Transaction(string userId, ETransactionTypes type, Category category, string title, string? description, decimal amount)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         EnsureCategoryMatchesType(type, category);
 
         UserId = userId;
         Type = type;
-        Category = category;
+        CategoryId = category.Id;
         Title = title;
         Description = description;
         Amount = amount;
@@ -78,7 +88,7 @@ public class Transaction : BaseModel
         string userId,
         DateTime createdAt,
         ETransactionTypes? type = null,
-        ETransactionCategory? category = null,
+        Category? category = null,
         string? title = null,
         string? description = null,
         decimal? amount = null)
@@ -91,7 +101,7 @@ public class Transaction : BaseModel
     /// <summary>Aplica apenas os campos informados; marca como atualizada se algo mudou.</summary>
     public void Edit(
         ETransactionTypes? type = null,
-        ETransactionCategory? category = null,
+        Category? category = null,
         string? title = null,
         string? description = null,
         decimal? amount = null)
@@ -107,9 +117,9 @@ public class Transaction : BaseModel
             hasChanges = true;
         }
 
-        if (category is { } newCategory && Category != newCategory)
+        if (category is { } newCategory && CategoryId != newCategory.Id)
         {
-            Category = newCategory;
+            CategoryId = newCategory.Id;
             hasChanges = true;
         }
 
@@ -141,12 +151,14 @@ public class Transaction : BaseModel
     public void Delete() => MarkAsDeleted();
 
     /// <summary>Garante que a categoria pertence ao tipo; lança <see cref="ArgumentException"/> caso contrário.</summary>
-    private static void EnsureCategoryMatchesType(ETransactionTypes type, ETransactionCategory category)
+    private static void EnsureCategoryMatchesType(ETransactionTypes type, Category category)
     {
-        if (!TransactionCategories.Belongs(type, category))
+        ArgumentNullException.ThrowIfNull(category);
+
+        if (category.Type != type)
         {
             throw new ArgumentException(
-                $"A categoria '{category}' não pertence ao tipo '{type}'.", nameof(category));
+                $"A categoria '{category.Name}' (tipo {category.Type}) não pertence ao tipo '{type}'.", nameof(category));
         }
     }
 }

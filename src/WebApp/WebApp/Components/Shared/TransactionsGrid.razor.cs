@@ -6,6 +6,7 @@ using MudBlazor;
 using WebApp.Data;
 using WebApp.Models;
 using WebApp.Models.Enums;
+using WebApp.Services;
 
 namespace WebApp.Components.Shared;
 
@@ -27,14 +28,34 @@ public partial class TransactionsGrid : ComponentBase
     private MudDataGrid<Transaction> _grid = default!;
     private string? _search;
     private ETransactionTypes? _typeFilter;
-    private ETransactionCategory? _categoryFilter;
+    private Guid? _categoryFilter;
+    private IReadOnlyList<Category> _categories = [];
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (!RendererInfo.IsInteractive)
+        {
+            return;
+        }
+
+        await CarregarCategoriasAsync();
+    }
 
     /// <summary>Recarrega a página atual a partir do banco (ex.: após criar/editar).</summary>
     public Task ReloadAsync() => _grid.ReloadServerData();
 
-    // Categorias do tipo selecionado; sem tipo, todas.
-    private IEnumerable<ETransactionCategory> CategoriasDisponiveis() =>
-        _typeFilter is { } type ? TransactionCategories.For(type) : Enum.GetValues<ETransactionCategory>();
+    private async Task CarregarCategoriasAsync()
+    {
+        await using var scope = ScopeFactory.CreateAsyncScope();
+        var categorias = scope.ServiceProvider.GetRequiredService<CategoryService>();
+        _categories = await categorias.GetTreeAsync(UserId, _typeFilter);
+    }
+
+    // Nome exibido da categoria da transação: "Principal › Sub" quando for subcategoria.
+    private static string NomeCategoria(Transaction t) =>
+        t.Category is null ? "—"
+        : t.Category.Parent is null ? t.Category.Name
+        : $"{t.Category.Parent.Name} › {t.Category.Name}";
 
     private async Task OnSearchAsync(string search)
     {
@@ -45,9 +66,10 @@ public partial class TransactionsGrid : ComponentBase
     private async Task OnTypeFilterChanged(ETransactionTypes? type)
     {
         _typeFilter = type;
+        await CarregarCategoriasAsync();
 
-        // Se a categoria filtrada não pertence ao novo tipo, limpa.
-        if (type is { } t && _categoryFilter is { } c && !TransactionCategories.Belongs(t, c))
+        // Se a categoria filtrada não pertence mais à lista do novo tipo, limpa.
+        if (_categoryFilter is { } id && !_categories.Any(c => c.Id == id || c.Children.Any(f => f.Id == id)))
         {
             _categoryFilter = null;
         }
@@ -55,9 +77,9 @@ public partial class TransactionsGrid : ComponentBase
         await _grid.ReloadServerData();
     }
 
-    private async Task OnCategoryFilterChanged(ETransactionCategory? category)
+    private async Task OnCategoryFilterChanged(Guid? categoryId)
     {
-        _categoryFilter = category;
+        _categoryFilter = categoryId;
         await _grid.ReloadServerData();
     }
 
@@ -69,6 +91,7 @@ public partial class TransactionsGrid : ComponentBase
 
         var query = db.Transactions
             .AsNoTracking()
+            .Include(t => t.Category).ThenInclude(c => c!.Parent)
             .Where(t => t.UserId == UserId && t.DeletedAt == null);
 
         if (_typeFilter is { } type)
@@ -76,9 +99,13 @@ public partial class TransactionsGrid : ComponentBase
             query = query.Where(t => t.Type == type);
         }
 
-        if (_categoryFilter is { } category)
+        if (_categoryFilter is { } categoryId)
         {
-            query = query.Where(t => t.Category == category);
+            // Filtrar por uma categoria principal inclui as suas subcategorias; por uma sub, é exato.
+            var éPrincipal = _categories.Any(c => c.Id == categoryId);
+            query = éPrincipal
+                ? query.Where(t => t.CategoryId == categoryId || (t.Category != null && t.Category.ParentId == categoryId))
+                : query.Where(t => t.CategoryId == categoryId);
         }
 
         if (!string.IsNullOrWhiteSpace(_search))
@@ -116,7 +143,9 @@ public partial class TransactionsGrid : ComponentBase
             nameof(Transaction.Description) => desc ? query.OrderByDescending(t => t.Description) : query.OrderBy(t => t.Description),
             nameof(Transaction.Amount) => desc ? query.OrderByDescending(t => t.Amount) : query.OrderBy(t => t.Amount),
             nameof(Transaction.Type) => desc ? query.OrderByDescending(t => t.Type) : query.OrderBy(t => t.Type),
-            nameof(Transaction.Category) => desc ? query.OrderByDescending(t => t.Category) : query.OrderBy(t => t.Category),
+            nameof(Transaction.Category) => desc
+                ? query.OrderByDescending(t => t.Category!.Name)
+                : query.OrderBy(t => t.Category!.Name),
             _ => desc ? query.OrderByDescending(t => t.CreatedAt) : query.OrderBy(t => t.CreatedAt),
         };
     }

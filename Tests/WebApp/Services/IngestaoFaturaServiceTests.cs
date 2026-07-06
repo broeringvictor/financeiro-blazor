@@ -108,7 +108,7 @@ public class IngestaoFaturaServiceTests
     }
 
     [Fact]
-    public async Task UpsertAsync_ContaValorFixo_ValorExtraidoDivergente_FicaNaoReconhecido()
+    public async Task UpsertAsync_ContaValorFixo_ValorExtraidoDivergente_UsaValorExtraido()
     {
         var (db, conn) = NovoContexto();
         await using var _ = db;
@@ -126,7 +126,8 @@ public class IngestaoFaturaServiceTests
             Valor = 187.42m,
         });
 
-        Assert.Equal(0m, invoice.Amount);
+        // O valor extraído da fatura sempre prevalece sobre o FixedAmount, mesmo divergindo dele.
+        Assert.Equal(187.42m, invoice.Amount);
     }
 
     [Fact]

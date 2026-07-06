@@ -34,10 +34,20 @@ public class Bill : BaseModel
         private set => field = value.Trim();
     } = string.Empty;
 
-    /// <summary>Categoria (precisa pertencer ao tipo Despesa).</summary>
-    [DisplayName("Categoria")]
-    [EnumDataType(typeof(ETransactionCategory), ErrorMessage = "Categoria inválida.")]
-    public ETransactionCategory Category { get; private set; }
+    /// <summary>
+    /// Categoria de despesa (principal ou subcategoria). Nula apenas em linhas legadas ainda não migradas;
+    /// toda conta criada pelo domínio recebe uma categoria obrigatória.
+    /// </summary>
+    public Guid? CategoryId { get; private set; }
+
+    /// <summary>Navegação para a categoria.</summary>
+    public Category? Category { get; private set; }
+
+    /// <summary>
+    /// Categoria legada (enum) da versão anterior, mantida apenas para o backfill de <see cref="CategoryId"/>.
+    /// Não é mais usada pelo domínio e será removida numa migração futura.
+    /// </summary>
+    public ETransactionCategory LegacyCategory { get; private set; }
 
     /// <summary>Regra de recorrência (owned).</summary>
     public RecurrenceRule Recurrence { get; private set; } = null!;
@@ -80,7 +90,7 @@ public class Bill : BaseModel
         string userId,
         string name,
         string billerName,
-        ETransactionCategory category,
+        Category category,
         RecurrenceRule recurrence,
         decimal? fixedAmount = null,
         bool autoSearch = false,
@@ -95,7 +105,7 @@ public class Bill : BaseModel
         UserId = userId;
         Name = name;
         BillerName = billerName;
-        Category = category;
+        CategoryId = category.Id;
         Recurrence = recurrence;
         FixedAmount = fixedAmount;
         AutoSearch = autoSearch;
@@ -107,7 +117,7 @@ public class Bill : BaseModel
     public void Edit(
         string? name = null,
         string? billerName = null,
-        ETransactionCategory? category = null,
+        Category? category = null,
         RecurrenceRule? recurrence = null,
         decimal? fixedAmount = null,
         bool? active = null,
@@ -134,9 +144,9 @@ public class Bill : BaseModel
             hasChanges = true;
         }
 
-        if (category is { } newCategory && Category != newCategory)
+        if (category is { } newCategory && CategoryId != newCategory.Id)
         {
-            Category = newCategory;
+            CategoryId = newCategory.Id;
             hasChanges = true;
         }
 
@@ -209,12 +219,14 @@ public class Bill : BaseModel
                || s.Contains(BillerName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void EnsureExpenseCategory(ETransactionCategory category)
+    private static void EnsureExpenseCategory(Category category)
     {
-        if (!TransactionCategories.Belongs(ETransactionTypes.Expense, category))
+        ArgumentNullException.ThrowIfNull(category);
+
+        if (category.Type != ETransactionTypes.Expense)
         {
             throw new ArgumentException(
-                $"A categoria '{category}' não é uma categoria de despesa.", nameof(category));
+                $"A categoria '{category.Name}' não é uma categoria de despesa.", nameof(category));
         }
     }
 

@@ -33,8 +33,13 @@
                 }
             </CellTemplate>
         </PropertyColumn>
-        <PropertyColumn Property="x => x.Category" Title="Categoria">
-            <CellTemplate>@context.Item.Category.GetDisplayName()</CellTemplate>
+        <PropertyColumn Property="x => x.Category!.Name" Title="Categoria">
+            <CellTemplate>
+                @if (context.Item.Category is { } c)
+                {
+                    @(c.Parent is null ? c.Name : $"{c.Parent.Name} › {c.Name}")
+                }
+            </CellTemplate>
         </PropertyColumn>
         <TemplateColumn Title="Recorrência">
             <CellTemplate>

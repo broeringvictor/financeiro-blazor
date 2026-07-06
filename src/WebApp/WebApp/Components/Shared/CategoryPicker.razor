@@ -1,0 +1,67 @@
+@using WebApp.Models
+
+@* Seletor de categoria em dois níveis: as principais são selecionáveis e as subcategorias aparecem indentadas.
+   Aceita selecionar tanto a categoria principal quanto uma subcategoria. Puramente apresentacional: a lista de
+   categorias é fornecida pelo componente-pai (que mantém as entidades para persistência). *@
+<MudSelect T="Guid?"
+           Value="Value"
+           ValueChanged="ValueChanged"
+           Label="@Label"
+           Variant="Variant.Outlined"
+           Clearable="@Clearable"
+           Margin="@Margin"
+           Style="@Style"
+           ToStringFunc="NomeDe">
+    @foreach (var root in Categories)
+    {
+        <MudSelectItem T="Guid?" Value="@((Guid?)root.Id)">@root.Name</MudSelectItem>
+        @foreach (var child in root.Children.OrderBy(c => c.Name))
+        {
+            <MudSelectItem T="Guid?" Value="@((Guid?)child.Id)">
+                <span style="padding-left:1.25rem">@child.Name</span>
+            </MudSelectItem>
+        }
+    }
+</MudSelect>
+
+@code {
+    /// <summary>Categorias principais (com as subcategorias carregadas em <c>Children</c>).</summary>
+    [Parameter] public IReadOnlyList<Category> Categories { get; set; } = [];
+
+    [Parameter] public Guid? Value { get; set; }
+
+    [Parameter] public EventCallback<Guid?> ValueChanged { get; set; }
+
+    [Parameter] public string Label { get; set; } = "Categoria";
+
+    [Parameter] public bool Clearable { get; set; }
+
+    [Parameter] public Margin Margin { get; set; } = Margin.None;
+
+    [Parameter] public string? Style { get; set; }
+
+    // Nome exibido do valor selecionado: "Principal › Sub" quando for subcategoria.
+    private string NomeDe(Guid? id)
+    {
+        if (id is not { } value)
+        {
+            return string.Empty;
+        }
+
+        foreach (var root in Categories)
+        {
+            if (root.Id == value)
+            {
+                return root.Name;
+            }
+
+            var child = root.Children.FirstOrDefault(c => c.Id == value);
+            if (child is not null)
+            {
+                return $"{root.Name} › {child.Name}";
+            }
+        }
+
+        return string.Empty;
+    }
+}

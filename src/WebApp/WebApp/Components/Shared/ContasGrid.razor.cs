@@ -46,6 +46,7 @@ public partial class ContasGrid : ComponentBase
 
         _bills = await db.Bills
             .AsNoTracking()
+            .Include(b => b.Category).ThenInclude(c => c!.Parent)
             .Where(b => b.UserId == UserId && b.DeletedAt == null)
             .OrderBy(b => b.Name)
             .ToListAsync();

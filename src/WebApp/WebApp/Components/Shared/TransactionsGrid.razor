@@ -26,19 +26,13 @@
                     <MudSelectItem T="ETransactionTypes?" Value="type">@type.GetDisplayName()</MudSelectItem>
                 }
             </MudSelect>
-            <MudSelect T="ETransactionCategory?"
-                       Value="_categoryFilter"
-                       ValueChanged="OnCategoryFilterChanged"
-                       Label="Categoria"
-                       Clearable="true"
-                       Variant="Variant.Outlined"
-                       Margin="Margin.Dense"
-                       Style="min-width:170px">
-                @foreach (var category in CategoriasDisponiveis())
-                {
-                    <MudSelectItem T="ETransactionCategory?" Value="category">@category.GetDisplayName()</MudSelectItem>
-                }
-            </MudSelect>
+            <CategoryPicker Categories="_categories"
+                            Value="_categoryFilter"
+                            ValueChanged="OnCategoryFilterChanged"
+                            Label="Categoria"
+                            Clearable="true"
+                            Margin="Margin.Dense"
+                            Style="min-width:190px" />
             <MudTextField Value="_search"
                           ValueChanged="@((string s) => OnSearchAsync(s))"
                           Placeholder="Buscar por título ou descrição"
@@ -57,8 +51,8 @@
         <PropertyColumn Property="x => x.Type" Title="Tipo">
             <CellTemplate>@context.Item.Type.GetDisplayName()</CellTemplate>
         </PropertyColumn>
-        <PropertyColumn Property="x => x.Category" Title="Categoria">
-            <CellTemplate>@context.Item.Category.GetDisplayName()</CellTemplate>
+        <PropertyColumn Property="x => x.Category!.Name" Title="Categoria">
+            <CellTemplate>@NomeCategoria(context.Item)</CellTemplate>
         </PropertyColumn>
         <PropertyColumn Property="x => x.Title" Title="Título" />
         <PropertyColumn Property="x => x.Description" Title="Descrição" />

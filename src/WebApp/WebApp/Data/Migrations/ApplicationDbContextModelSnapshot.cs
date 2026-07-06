@@ -343,12 +343,13 @@ namespace WebApp.Data.Migrations
 
                     b.HasIndex("SourceEmailMessageId")
                         .IsUnique()
-                        .HasFilter("\"SourceEmailMessageId\" IS NOT NULL");
+                        .HasFilter("\"SourceEmailMessageId\" IS NOT NULL AND \"DeletedAt\" IS NULL");
 
                     b.HasIndex("Status");
 
                     b.HasIndex("BillId", "ReferenceMonth")
-                        .IsUnique();
+                        .IsUnique()
+                        .HasFilter("\"DeletedAt\" IS NULL");
 
                     b.HasIndex("UserId", "DueDate");
 
