@@ -22,7 +22,14 @@
                 @context.Item.BillerName
                 @if (!string.IsNullOrEmpty(context.Item.PixKey))
                 {
-                    <MudText Typo="Typo.caption" Class="mud-text-secondary d-block">Pix: @context.Item.PixKey</MudText>
+                    <div class="d-flex align-center" @onclick:stopPropagation="true">
+                        <MudText Typo="Typo.caption" Class="mud-text-secondary">Pix: @context.Item.PixKey</MudText>
+                        <MudIconButton Icon="@Icons.Material.Filled.ContentCopy"
+                                       Size="Size.Small"
+                                       Color="Color.Default"
+                                       title="Copiar Pix"
+                                       OnClick="@(() => CopiarPix(context.Item.PixKey))" />
+                    </div>
                 }
             </CellTemplate>
         </PropertyColumn>
@@ -53,11 +60,14 @@
         <TemplateColumn Title="Ações" CellStyle="white-space:nowrap">
             <CellTemplate>
                 <div @onclick:stopPropagation="true">
-                    <MudIconButton Icon="@Icons.Material.Filled.Search"
-                                   Size="Size.Small"
-                                   Color="Color.Info"
-                                   title="Buscar fatura agora"
-                                   OnClick="@(() => BuscarConta(context.Item))" />
+                    @if (context.Item.AutoSearch)
+                    {
+                        <MudIconButton Icon="@Icons.Material.Filled.Search"
+                                       Size="Size.Small"
+                                       Color="Color.Info"
+                                       title="Buscar fatura agora"
+                                       OnClick="@(() => BuscarConta(context.Item))" />
+                    }
                     <MudIconButton Icon="@Icons.Material.Filled.Edit"
                                    Size="Size.Small"
                                    Color="Color.Primary"

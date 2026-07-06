@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.JSInterop;
 using MudBlazor;
 using WebApp.Data;
 using WebApp.Models;
@@ -18,6 +19,8 @@ public partial class ContasGrid : ComponentBase
     [Inject] private IServiceScopeFactory ScopeFactory { get; set; } = default!;
 
     [Inject] private ILogger<ContasGrid> Logger { get; set; } = default!;
+
+    [Inject] private IJSRuntime JS { get; set; } = default!;
 
     /// <summary>Dono das contas exibidas.</summary>
     [Parameter, EditorRequired] public string UserId { get; set; } = string.Empty;
@@ -63,6 +66,7 @@ public partial class ContasGrid : ComponentBase
         if (result is { Canceled: false, Data: Bill nova })
         {
             await PersistirAsync(db => db.Bills.Add(nova), "Conta criada.");
+            await GerarFaturasEmAbertoAsync(nova);
         }
     }
 
@@ -80,6 +84,50 @@ public partial class ContasGrid : ComponentBase
         if (result is { Canceled: false, Data: Bill editada })
         {
             await PersistirAsync(db => db.Bills.Update(editada), "Conta atualizada.");
+            await GerarFaturasEmAbertoAsync(editada);
+        }
+    }
+
+    /// <summary>
+    /// Gera as faturas em aberto da conta logo após salvá-la, para o usuário ver as pendências na hora —
+    /// sem esperar o worker diário. Falhas aqui não devem quebrar o salvamento, então são só logadas.
+    /// </summary>
+    private async Task GerarFaturasEmAbertoAsync(Bill bill)
+    {
+        try
+        {
+            await using var scope = ScopeFactory.CreateAsyncScope();
+            var gerador = scope.ServiceProvider.GetRequiredService<GeracaoFaturaService>();
+            var qtd = await gerador.GerarPendentesAsync(UserId, bill);
+
+            if (qtd > 0)
+            {
+                Snackbar.Add($"{qtd} fatura(s) em aberto criada(s).", Severity.Info);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha ao gerar faturas em aberto da conta {BillId}.", bill.Id);
+        }
+    }
+
+    /// <summary>Copia a chave Pix da conta para a área de transferência.</summary>
+    private async Task CopiarPix(string? pix)
+    {
+        if (string.IsNullOrWhiteSpace(pix))
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", pix);
+            Snackbar.Add("Pix copiado.", Severity.Success);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Falha ao copiar a chave Pix.");
+            Snackbar.Add("Não foi possível copiar o Pix.", Severity.Error);
         }
     }
 

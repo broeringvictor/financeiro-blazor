@@ -31,6 +31,14 @@ var autoSearchFaturasOptions = builder.Configuration
 builder.Services.AddSingleton(autoSearchFaturasOptions);
 builder.Services.AddHostedService<WebApp.Services.AutoSearchFaturasWorker>();
 
+// Geração de faturas em aberto a partir da recorrência da conta (independe de e-mail/boleto; seção "GeracaoFaturas").
+builder.Services.AddScoped<WebApp.Services.GeracaoFaturaService>();
+var geracaoFaturasOptions = builder.Configuration
+    .GetSection("GeracaoFaturas")
+    .Get<WebApp.Services.GeracaoFaturaOptions>() ?? new WebApp.Services.GeracaoFaturaOptions();
+builder.Services.AddSingleton(geracaoFaturasOptions);
+builder.Services.AddHostedService<WebApp.Services.GeracaoFaturasWorker>();
+
 // Add MudBlazor services
 builder.Services.AddMudServices();
 

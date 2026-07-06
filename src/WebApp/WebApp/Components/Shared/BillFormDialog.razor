@@ -44,7 +44,10 @@
             <MudTextField @bind-Value="_pixKey"
                           Label="Chave Pix do fornecedor (opcional)"
                           HelperText="Útil pra contas pagas manualmente, sem boleto por e-mail"
-                          Variant="Variant.Outlined" />
+                          Variant="Variant.Outlined"
+                          Adornment="Adornment.End"
+                          AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                          OnAdornmentClick="CopiarPix" />
 
             <MudSwitch @bind-Value="_autoSearch" Label="Busca automática" Color="Color.Primary" />
 
@@ -64,6 +67,9 @@
         <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Salvar</MudButton>
     </DialogActions>
 </MudDialog>
+
+@inject IJSRuntime JS
+@inject ISnackbar Snackbar
 
 @code {
     [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
@@ -147,4 +153,22 @@
     }
 
     private void Cancel() => MudDialog.Cancel();
+
+    private async Task CopiarPix()
+    {
+        if (string.IsNullOrWhiteSpace(_pixKey))
+        {
+            return;
+        }
+
+        try
+        {
+            await JS.InvokeVoidAsync("navigator.clipboard.writeText", _pixKey);
+            Snackbar.Add("Pix copiado.", Severity.Success);
+        }
+        catch
+        {
+            Snackbar.Add("Não foi possível copiar o Pix.", Severity.Error);
+        }
+    }
 }
