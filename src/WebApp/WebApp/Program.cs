@@ -44,8 +44,9 @@ var geracaoFaturasOptions = builder.Configuration
 builder.Services.AddSingleton(geracaoFaturasOptions);
 builder.Services.AddHostedService<WebApp.Services.GeracaoFaturasWorker>();
 
-// Alerta diário de vencimentos por WhatsApp (cliente Evolution + worker; seção "VencimentoAlerta").
+// Alerta diário de vencimentos por WhatsApp (cliente Evolution + serviço + worker; seção "VencimentoAlerta").
 builder.Services.AddEvolutionWhatsApp(builder.Configuration);
+builder.Services.AddScoped<WebApp.Services.VencimentoAlertaService>();
 var vencimentoAlertaOptions = builder.Configuration
     .GetSection("VencimentoAlerta")
     .Get<WebApp.Services.VencimentoAlertaOptions>() ?? new WebApp.Services.VencimentoAlertaOptions();
@@ -163,5 +164,14 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapFaturaEndpoints();
+
+// Só em dev: dispara o alerta de vencimentos na hora, sem esperar o horário diário (teste local).
+// POST http://localhost:<porta>/dev/alertas/vencimentos
+if (app.Environment.IsDevelopment())
+{
+    app.MapPost("/dev/alertas/vencimentos",
+        async (WebApp.Services.VencimentoAlertaService svc, CancellationToken ct) =>
+            Results.Ok(await svc.EnviarAsync(ct)));
+}
 
 app.Run();

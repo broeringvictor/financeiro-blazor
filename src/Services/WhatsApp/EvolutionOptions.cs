@@ -15,8 +15,12 @@ public sealed class EvolutionOptions
     /// <summary>Nome da instância do WhatsApp já conectada na Evolution (pareada via QR code).</summary>
     public string Instance { get; set; } = "financeiro";
 
-    /// <summary>Número que recebe os alertas, com DDI+DDD (ex.: 5548999999999). Sem "+" nem espaços.</summary>
-    public string RecipientNumber { get; set; } = "5548991668808";
+    /// <summary>
+    /// Destinatário dos alertas. Contato: número com DDI+DDD (ex.: 5548999999999, sem "+" nem espaços).
+    /// Grupo: o JID do grupo com sufixo "@g.us" (ex.: 120363039104311645@g.us). A conta pareada precisa
+    /// ser membro do grupo.
+    /// </summary>
+    public string RecipientNumber { get; set; } = "120363039104311645@g.us";
 
     /// <summary>True quando BaseUrl e ApiKey estão preenchidos (evita disparar sem configuração).</summary>
     public bool IsConfigured => !string.IsNullOrWhiteSpace(BaseUrl) && !string.IsNullOrWhiteSpace(ApiKey);

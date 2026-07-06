@@ -16,5 +16,15 @@
       <jdbc-url>jdbc:sqlite:$PROJECT_DIR$/src/WebApp/WebApp/app.db</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>
     </data-source>
+    <data-source source="LOCAL" name="evolution-postgres" uuid="12cfffcf-8d8d-47fb-aca9-59736d83b986">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:52628/?password=dbn9._4ex--a62pC%7ECApH4&amp;user=postgres</jdbc-url>
+      <jdbc-additional-properties>
+        <property name="aspireResourceId" value="evolution-postgres-c464dc53" />
+      </jdbc-additional-properties>
+      <working-dir>$ProjectFileDir$</working-dir>
+    </data-source>
   </component>
 </project>
