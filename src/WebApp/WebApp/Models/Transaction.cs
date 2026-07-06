@@ -125,6 +125,9 @@ public class Transaction : BaseModel
         if (category is { } newCategory && CategoryId != newCategory.Id)
         {
             CategoryId = newCategory.Id;
+            // Mantém a navegação coerente para validações futuras em memória. Os fluxos de edição
+            // persistem via Update (a categoria já existe), então não há risco de reinserção.
+            Category = newCategory;
             hasChanges = true;
         }
 
