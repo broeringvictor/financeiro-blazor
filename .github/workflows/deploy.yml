@@ -12,11 +12,15 @@ jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
     env:
-      # O runner não tem o .env (gitignored). "build"/"push" nunca usam essa env var de fato
+      # O runner não tem o .env (gitignored). "build"/"push" nunca usam essas env vars de fato
       # (só o "up" na VPS, com o .env real, usa pra valer) — mas o compose interpola o arquivo
       # inteiro antes de saber qual comando/serviço foi pedido, então precisa de algum valor
-      # aqui só pra não falhar o parse.
+      # aqui só pra não falhar o parse (variáveis com guarda ":?").
       ASPIRE_OTLP_APIKEY: unused-in-ci-build
+      EVOLUTION_API_KEY: unused-in-ci-build
+      EVOLUTION_POSTGRES_PASSWORD: unused-in-ci-build
+      EVOLUTION_SERVER_URL: unused-in-ci-build
+      EVOLUTION_RECIPIENT_NUMBER: unused-in-ci-build
 
     steps:
       - uses: actions/checkout@v4
