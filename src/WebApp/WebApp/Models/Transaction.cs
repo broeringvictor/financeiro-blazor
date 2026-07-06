@@ -106,8 +106,13 @@ public class Transaction : BaseModel
         string? description = null,
         decimal? amount = null)
     {
-        // Valida a combinação final (tipo/categoria) antes de qualquer mutação.
-        EnsureCategoryMatchesType(type ?? Type, category ?? Category);
+        // Valida a combinação final (tipo/categoria) antes de qualquer mutação. Quando não há categoria
+        // (nem informada, nem já definida — ex.: reconstrução parcial), não há o que validar.
+        var categoriaEfetiva = category ?? Category;
+        if (categoriaEfetiva is not null)
+        {
+            EnsureCategoryMatchesType(type ?? Type, categoriaEfetiva);
+        }
 
         var hasChanges = false;
 

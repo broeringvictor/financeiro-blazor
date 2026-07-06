@@ -10,8 +10,10 @@ public class AutoSearchFaturasWorkerTests
 {
     private const string UserId = "user-123";
 
+    private static readonly Category Contas = new(UserId, "Contas", ETransactionTypes.Expense);
+
     private static Bill CriarConta(string nome = "Luz - Celesc") =>
-        new(UserId, nome, "Celesc", ETransactionCategory.Utilities,
+        new(UserId, nome, "Celesc", Contas,
             new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10)));
 
     private static AutoSearchFaturasWorker NovoWorker() =>

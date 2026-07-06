@@ -15,7 +15,9 @@ public class IngestaoFaturaServiceTests
     private const string UserId = "user-123";
 
     private static IngestaoFaturaService NovoServico(ApplicationDbContext db) =>
-        new(db, NullLogger<IngestaoFaturaService>.Instance);
+        new(db,
+            new CategoryService(db, NullLogger<CategoryService>.Instance),
+            NullLogger<IngestaoFaturaService>.Instance);
 
     private static (ApplicationDbContext db, SqliteConnection conn) NovoContexto()
     {
@@ -35,8 +37,16 @@ public class IngestaoFaturaServiceTests
         return (db, conn);
     }
 
-    private static Bill CriarContaCelesc() =>
-        new(UserId, "Luz - Celesc", "Celesc", ETransactionCategory.Utilities,
+    // Adiciona uma categoria de despesa ao contexto (ainda não salva) e devolve-a.
+    private static Category NovaCategoria(ApplicationDbContext db, string nome = "Contas")
+    {
+        var categoria = new Category(UserId, nome, ETransactionTypes.Expense);
+        db.Categories.Add(categoria);
+        return categoria;
+    }
+
+    private static Bill CriarContaCelesc(ApplicationDbContext db) =>
+        new(UserId, "Luz - Celesc", "Celesc", NovaCategoria(db),
             new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10)));
 
     private static FaturaExtraida DadosCelesc(string? messageId = "msg-1") =>
@@ -80,7 +90,7 @@ public class IngestaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var bill = CriarContaCelesc();
+        var bill = CriarContaCelesc(db);
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
@@ -96,7 +106,7 @@ public class IngestaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        db.Bills.Add(CriarContaCelesc());
+        db.Bills.Add(CriarContaCelesc(db));
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
 
@@ -114,7 +124,7 @@ public class IngestaoFaturaServiceTests
         await using var _ = db;
         using var __ = conn;
         db.Bills.Add(new Bill(
-            UserId, "Aluguel", "Imobiliária X", ETransactionCategory.Rent,
+            UserId, "Aluguel", "Imobiliária X", NovaCategoria(db, "Aluguel"),
             new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 5, new DateOnly(2026, 1, 5)),
             fixedAmount: 1500m));
         await db.SaveChangesAsync();
@@ -137,7 +147,7 @@ public class IngestaoFaturaServiceTests
         await using var _ = db;
         using var __ = conn;
         db.Bills.Add(new Bill(
-            UserId, "Aluguel", "Imobiliária X", ETransactionCategory.Rent,
+            UserId, "Aluguel", "Imobiliária X", NovaCategoria(db, "Aluguel"),
             new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 5, new DateOnly(2026, 1, 5)),
             fixedAmount: 1500m));
         await db.SaveChangesAsync();
@@ -158,7 +168,7 @@ public class IngestaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        db.Bills.Add(CriarContaCelesc());
+        db.Bills.Add(CriarContaCelesc(db));
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
         var invoice = await sut.UpsertAsync(UserId, DadosCelesc());
@@ -166,7 +176,9 @@ public class IngestaoFaturaServiceTests
         var tx = await sut.PagarAsync(invoice.Id, UserId);
 
         Assert.Equal(ETransactionTypes.Expense, tx.Type);
-        Assert.Equal(ETransactionCategory.Utilities, tx.Category);
+        // A transação herda a categoria da conta associada à fatura.
+        var bill = await db.Bills.FirstAsync();
+        Assert.Equal(bill.CategoryId, tx.CategoryId);
         Assert.Equal(187.42m, tx.Amount);
 
         var atualizada = await db.Invoices.SingleAsync();

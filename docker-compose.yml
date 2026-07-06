@@ -12,6 +12,9 @@ services:
         required: false
     environment:
       - ConnectionStrings__DefaultConnection=Data Source=/app/data/app.db
+      # Chaves de Data Protection no volume persistente: sem isso, cada redeploy invalida os
+      # cookies de login e tokens antiforgery já emitidos (erro ao desserializar o token).
+      - DataProtection__KeysDirectory=/app/data/keys
       - OTEL_EXPORTER_OTLP_ENDPOINT=http://aspire-dashboard:18889
       - OTEL_SERVICE_NAME=webapp
       # Sem isso, o dashboard aceitaria telemetria de qualquer app não autenticado (ver

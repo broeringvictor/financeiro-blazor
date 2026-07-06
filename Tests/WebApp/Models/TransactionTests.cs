@@ -7,17 +7,22 @@ public class TransactionTests
 {
     private const string UserId = "user-123";
 
+    private static readonly Category Aluguel = new(UserId, "Aluguel", ETransactionTypes.Expense);
+    private static readonly Category Mercado = new(UserId, "Mercado", ETransactionTypes.Expense);
+    private static readonly Category Salario = new(UserId, "Salário", ETransactionTypes.Income);
+    private static readonly Category Freelance = new(UserId, "Freelance", ETransactionTypes.Income);
+
     // ---------- Create ----------
 
     [Fact]
     public void Create_DeveDefinirTodosOsValores()
     {
         var transaction = new Transaction(
-            UserId, ETransactionTypes.Expense, ETransactionCategory.Rent, "Aluguel", "Pagamento mensal", 1500m);
+            UserId, ETransactionTypes.Expense, Aluguel, "Aluguel", "Pagamento mensal", 1500m);
 
         Assert.Equal(UserId, transaction.UserId);
         Assert.Equal(ETransactionTypes.Expense, transaction.Type);
-        Assert.Equal(ETransactionCategory.Rent, transaction.Category);
+        Assert.Equal(Aluguel.Id, transaction.CategoryId);
         Assert.Equal("Aluguel", transaction.Title);
         Assert.Equal("Pagamento mensal", transaction.Description);
         Assert.Equal(1500m, transaction.Amount);
@@ -29,7 +34,7 @@ public class TransactionTests
         var antes = DateTime.UtcNow;
 
         var transaction = new Transaction(
-            UserId, ETransactionTypes.Income, ETransactionCategory.Salary, "Salário", null, 5000m);
+            UserId, ETransactionTypes.Income, Salario, "Salário", null, 5000m);
 
         Assert.NotEqual(Guid.Empty, transaction.Id);
         Assert.InRange(transaction.CreatedAt, antes, DateTime.UtcNow);
@@ -41,7 +46,7 @@ public class TransactionTests
     public void Create_DeveRemoverEspacosDoTitulo()
     {
         var transaction = new Transaction(
-            UserId, ETransactionTypes.Income, ETransactionCategory.Salary, "  Salário  ", null, 5000m);
+            UserId, ETransactionTypes.Income, Salario, "  Salário  ", null, 5000m);
 
         Assert.Equal("Salário", transaction.Title);
     }
@@ -53,7 +58,7 @@ public class TransactionTests
     public void Create_DeveNormalizarDescricaoVaziaParaNull(string? descricao)
     {
         var transaction = new Transaction(
-            UserId, ETransactionTypes.Income, ETransactionCategory.Salary, "Salário", descricao, 5000m);
+            UserId, ETransactionTypes.Income, Salario, "Salário", descricao, 5000m);
 
         Assert.Null(transaction.Description);
     }
@@ -65,15 +70,15 @@ public class TransactionTests
     public void Create_ComUserIdVazio_DeveLancar(string? userId)
     {
         Assert.ThrowsAny<ArgumentException>(() => new Transaction(
-            userId!, ETransactionTypes.Income, ETransactionCategory.Salary, "Salário", null, 5000m));
+            userId!, ETransactionTypes.Income, Salario, "Salário", null, 5000m));
     }
 
     [Fact]
     public void Create_ComCategoriaDeOutroTipo_DeveLancar()
     {
-        // Salary é categoria de Income, não de Expense.
+        // Salário é categoria de Income, não de Expense.
         var ex = Assert.Throws<ArgumentException>(() => new Transaction(
-            UserId, ETransactionTypes.Expense, ETransactionCategory.Salary, "Aluguel", null, 100m));
+            UserId, ETransactionTypes.Expense, Salario, "Aluguel", null, 100m));
 
         Assert.Equal("category", ex.ParamName);
     }
@@ -86,7 +91,7 @@ public class TransactionTests
             userId: UserId,
             createdAt: DateTime.UtcNow.AddDays(-1),
             type: ETransactionTypes.Expense,
-            category: ETransactionCategory.Groceries,
+            category: Mercado,
             title: "Original",
             description: "Descrição original",
             amount: 100m);
@@ -102,7 +107,7 @@ public class TransactionTests
         Assert.Equal(250m, transaction.Amount);
         // Não informados permanecem inalterados.
         Assert.Equal(ETransactionTypes.Expense, transaction.Type);
-        Assert.Equal(ETransactionCategory.Groceries, transaction.Category);
+        Assert.Equal(Mercado.Id, transaction.CategoryId);
         Assert.Equal("Descrição original", transaction.Description);
     }
 
@@ -111,10 +116,10 @@ public class TransactionTests
     {
         var transaction = CriarParaEdicao();
 
-        transaction.Edit(type: ETransactionTypes.Income, category: ETransactionCategory.Freelance);
+        transaction.Edit(type: ETransactionTypes.Income, category: Freelance);
 
         Assert.Equal(ETransactionTypes.Income, transaction.Type);
-        Assert.Equal(ETransactionCategory.Freelance, transaction.Category);
+        Assert.Equal(Freelance.Id, transaction.CategoryId);
     }
 
     [Fact]
@@ -122,16 +127,16 @@ public class TransactionTests
     {
         var transaction = CriarParaEdicao(); // Expense
 
-        // Salary não pertence a Expense; não passar novo tipo.
-        Assert.Throws<ArgumentException>(() => transaction.Edit(category: ETransactionCategory.Salary));
+        // Salário não pertence a Expense; não passar novo tipo.
+        Assert.Throws<ArgumentException>(() => transaction.Edit(category: Salario));
     }
 
     [Fact]
     public void Edit_NovoTipoSemNovaCategoria_DeveLancarSeCategoriaAtualNaoPertence()
     {
-        var transaction = CriarParaEdicao(); // Expense + Groceries
+        var transaction = CriarParaEdicao(); // Expense + Mercado
 
-        // Trocar só o tipo deixaria Groceries inválido para Income.
+        // Trocar só o tipo deixaria Mercado (Expense) inválido para Income.
         Assert.Throws<ArgumentException>(() => transaction.Edit(type: ETransactionTypes.Income));
     }
 
@@ -166,7 +171,7 @@ public class TransactionTests
 
         transaction.Edit(
             type: ETransactionTypes.Expense,
-            category: ETransactionCategory.Groceries,
+            category: Mercado,
             title: "Original",
             description: "Descrição original",
             amount: 100m);

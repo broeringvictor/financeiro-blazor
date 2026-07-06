@@ -8,11 +8,14 @@ public class BillTests
 {
     private const string UserId = "user-123";
 
+    private static readonly Category Contas = new(UserId, "Contas", ETransactionTypes.Expense);
+    private static readonly Category CategoriaReceita = new(UserId, "Salário", ETransactionTypes.Income);
+
     private static RecurrenceRule Mensal() =>
         new(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10));
 
     private static Bill CriarConta() =>
-        new(UserId, "Luz - Celesc", "Celesc", ETransactionCategory.Utilities, Mensal());
+        new(UserId, "Luz - Celesc", "Celesc", Contas, Mensal());
 
     [Fact]
     public void Create_DeveDefinirValores()
@@ -22,7 +25,7 @@ public class BillTests
         Assert.Equal(UserId, bill.UserId);
         Assert.Equal("Luz - Celesc", bill.Name);
         Assert.Equal("Celesc", bill.BillerName);
-        Assert.Equal(ETransactionCategory.Utilities, bill.Category);
+        Assert.Equal(Contas.Id, bill.CategoryId);
         Assert.True(bill.Active);
         Assert.NotEqual(Guid.Empty, bill.Id);
     }
@@ -31,14 +34,14 @@ public class BillTests
     public void Create_ComCategoriaNaoDespesa_DeveLancar()
     {
         Assert.Throws<ArgumentException>(() =>
-            new Bill(UserId, "Salário", "Empresa", ETransactionCategory.Salary, Mensal()));
+            new Bill(UserId, "Salário", "Empresa", CategoriaReceita, Mensal()));
     }
 
     [Fact]
     public void Create_ComValorFixoNegativo_DeveLancar()
     {
         Assert.Throws<ArgumentException>(() =>
-            new Bill(UserId, "Aluguel", "Imobiliária", ETransactionCategory.Rent, Mensal(), fixedAmount: -1m));
+            new Bill(UserId, "Aluguel", "Imobiliária", Contas, Mensal(), fixedAmount: -1m));
     }
 
     [Theory]
@@ -70,7 +73,7 @@ public class BillTests
     [Fact]
     public void Create_DefineBuscaAutomaticaEConsulta()
     {
-        var bill = new Bill(UserId, "Luz - Celesc", "Celesc", ETransactionCategory.Utilities, Mensal(),
+        var bill = new Bill(UserId, "Luz - Celesc", "Celesc", Contas, Mensal(),
             autoSearch: true, searchQuery: "Celesc fatura newer_than:120d");
 
         Assert.True(bill.AutoSearch);

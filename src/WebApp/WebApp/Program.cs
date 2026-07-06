@@ -1,5 +1,6 @@
 using Financeiro.ServiceDefaults;
 using Services;
+using Microsoft.AspNetCore.DataProtection;
 using Microsoft.AspNetCore.Components.Authorization;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.AspNetCore.Identity;
@@ -76,6 +77,18 @@ builder.Services.AddIdentityCore<ApplicationUser>(options =>
     .AddEntityFrameworkStores<ApplicationDbContext>()
     .AddSignInManager()
     .AddDefaultTokenProviders();
+
+// Data Protection: chaves que assinam os cookies de autenticação e os tokens antiforgery.
+// Sem persistência, cada restart/redeploy do container gera chaves novas e invalida os cookies
+// já emitidos ("An exception was thrown while deserializing the token"). Em prod, aponta para o
+// volume persistente (DataProtection:KeysDirectory=/app/data/keys); em dev fica sem valor e usa
+// o default efêmero, sem configuração extra. ApplicationName fixo mantém o ring estável entre deploys.
+var dataProtection = builder.Services.AddDataProtection().SetApplicationName("Financeiro");
+var keysDirectory = builder.Configuration["DataProtection:KeysDirectory"];
+if (!string.IsNullOrWhiteSpace(keysDirectory))
+{
+    dataProtection.PersistKeysToFileSystem(new DirectoryInfo(keysDirectory));
+}
 
 var app = builder.Build();
 

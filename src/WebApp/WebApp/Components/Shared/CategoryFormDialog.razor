@@ -1,0 +1,68 @@
+@using WebApp.Extensions
+@using WebApp.Models.Enums
+
+<MudDialog>
+    <DialogContent>
+        <MudStack Spacing="3" Style="min-width:360px">
+            <MudTextField @bind-Value="_name" Label="Nome" Variant="Variant.Outlined" Required="true" Immediate="true" />
+
+            @if (ShowTypeSelect)
+            {
+                <MudSelect T="ETransactionTypes" @bind-Value="_type" Label="Tipo" Variant="Variant.Outlined">
+                    @foreach (var type in Enum.GetValues<ETransactionTypes>())
+                    {
+                        <MudSelectItem Value="type">@type.GetDisplayName()</MudSelectItem>
+                    }
+                </MudSelect>
+            }
+
+            @if (!string.IsNullOrEmpty(_error))
+            {
+                <MudAlert Severity="Severity.Error">@_error</MudAlert>
+            }
+        </MudStack>
+    </DialogContent>
+    <DialogActions>
+        <MudButton OnClick="Cancel">Cancelar</MudButton>
+        <MudButton Color="Color.Primary" Variant="Variant.Filled" OnClick="Submit">Salvar</MudButton>
+    </DialogActions>
+</MudDialog>
+
+@code {
+    [CascadingParameter] private IMudDialogInstance MudDialog { get; set; } = default!;
+
+    /// <summary>Nome inicial (preenchido no modo edição).</summary>
+    [Parameter] public string? Name { get; set; }
+
+    /// <summary>Tipo inicial (usado só ao criar uma categoria principal).</summary>
+    [Parameter] public ETransactionTypes Type { get; set; } = ETransactionTypes.Expense;
+
+    /// <summary>Exibe o seletor de tipo (apenas ao criar uma categoria principal).</summary>
+    [Parameter] public bool ShowTypeSelect { get; set; }
+
+    private string _name = string.Empty;
+    private ETransactionTypes _type;
+    private string? _error;
+
+    protected override void OnInitialized()
+    {
+        _name = Name ?? string.Empty;
+        _type = Type;
+    }
+
+    private void Submit()
+    {
+        if (string.IsNullOrWhiteSpace(_name) || _name.Trim().Length < 2)
+        {
+            _error = "O nome deve ter ao menos 2 caracteres.";
+            return;
+        }
+
+        MudDialog.Close(DialogResult.Ok(new CategoryFormResult(_name.Trim(), _type)));
+    }
+
+    private void Cancel() => MudDialog.Cancel();
+
+    /// <summary>Resultado do formulário: nome e (para categoria principal) o tipo escolhido.</summary>
+    public sealed record CategoryFormResult(string Name, ETransactionTypes Type);
+}

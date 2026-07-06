@@ -35,14 +35,19 @@ public class GeracaoFaturaServiceTests
     }
 
     private static Bill ContaMensal(
+        ApplicationDbContext db,
         DateOnly? endDate = null,
         decimal? fixedAmount = null,
         int dueDay = 10)
     {
+        // A categoria é adicionada ao contexto (ainda não salva); o teste salva junto com a conta.
+        var categoria = new Category(UserId, "Aluguel", ETransactionTypes.Expense);
+        db.Categories.Add(categoria);
+
         // StartDate no passado garante ocorrências a partir do mês corrente independentemente da data do teste.
         var start = new DateOnly(2020, 1, dueDay);
         return new Bill(
-            UserId, "Aluguel", "Imobiliária X", ETransactionCategory.Rent,
+            UserId, "Aluguel", "Imobiliária X", categoria,
             new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, dueDay, start, endDate),
             fixedAmount: fixedAmount);
     }
@@ -53,7 +58,7 @@ public class GeracaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var bill = ContaMensal();
+        var bill = ContaMensal(db);
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
@@ -74,7 +79,7 @@ public class GeracaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var bill = ContaMensal();
+        var bill = ContaMensal(db);
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
@@ -94,7 +99,7 @@ public class GeracaoFaturaServiceTests
         using var __ = conn;
         // Prazo de 2 meses a partir do mês corrente => 3 competências (mês atual + 2).
         var fim = new DateOnly(DateTime.Today.Year, DateTime.Today.Month, 10).AddMonths(2);
-        var bill = ContaMensal(endDate: fim);
+        var bill = ContaMensal(db, endDate: fim);
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
@@ -112,7 +117,7 @@ public class GeracaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var bill = ContaMensal(fixedAmount: null);
+        var bill = ContaMensal(db, fixedAmount: null);
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
@@ -128,7 +133,7 @@ public class GeracaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var bill = ContaMensal(fixedAmount: 1500m);
+        var bill = ContaMensal(db, fixedAmount: 1500m);
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
         var sut = NovoServico(db);
@@ -144,7 +149,7 @@ public class GeracaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var bill = ContaMensal(fixedAmount: 1500m);
+        var bill = ContaMensal(db, fixedAmount: 1500m);
         db.Bills.Add(bill);
 
         // Fatura já existente no mês corrente (ex.: vinda de e-mail), com valor próprio.
@@ -169,7 +174,7 @@ public class GeracaoFaturaServiceTests
         var (db, conn) = NovoContexto();
         await using var _ = db;
         using var __ = conn;
-        var bill = ContaMensal();
+        var bill = ContaMensal(db);
         bill.Deactivate();
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
@@ -188,7 +193,7 @@ public class GeracaoFaturaServiceTests
         await using var _ = db;
         using var __ = conn;
         // EndDate no passado: recorrência já terminou.
-        var bill = ContaMensal(endDate: new DateOnly(2021, 1, 10));
+        var bill = ContaMensal(db, endDate: new DateOnly(2021, 1, 10));
         db.Bills.Add(bill);
         await db.SaveChangesAsync();
         var sut = NovoServico(db);

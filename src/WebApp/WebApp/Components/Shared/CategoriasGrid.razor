@@ -1,0 +1,58 @@
+@using WebApp.Extensions
+@using WebApp.Models
+@using WebApp.Models.Enums
+
+<MudText Typo="Typo.h5" Class="mb-4">Categorias</MudText>
+
+@foreach (var type in _types)
+{
+    <MudPaper Class="pa-4 mb-4" Elevation="1">
+        <MudStack Row="true" AlignItems="AlignItems.Center">
+            <MudText Typo="Typo.h6">@type.GetDisplayName()</MudText>
+            <MudSpacer />
+            <MudButton Variant="Variant.Outlined"
+                       Size="Size.Small"
+                       Color="Color.Primary"
+                       StartIcon="@Icons.Material.Filled.Add"
+                       OnClick="@(() => NovaPrincipal(type))">
+                Nova categoria
+            </MudButton>
+        </MudStack>
+
+        @foreach (var root in RaizesDe(type))
+        {
+            <MudStack Row="true" AlignItems="AlignItems.Center" Class="mt-3">
+                <MudText Typo="Typo.subtitle1"><b>@root.Name</b></MudText>
+                <MudSpacer />
+                <MudIconButton Icon="@Icons.Material.Filled.AddCircleOutline"
+                               Size="Size.Small" Color="Color.Primary"
+                               title="Nova subcategoria"
+                               OnClick="@(() => NovaSub(root))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                               Size="Size.Small" Color="Color.Default"
+                               title="Editar"
+                               OnClick="@(() => Editar(root))" />
+                <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                               Size="Size.Small" Color="Color.Error"
+                               title="Excluir"
+                               OnClick="@(() => Excluir(root))" />
+            </MudStack>
+
+            @foreach (var child in root.Children.OrderBy(c => c.Name))
+            {
+                <MudStack Row="true" AlignItems="AlignItems.Center" Class="ml-8">
+                    <MudText Typo="Typo.body2">@child.Name</MudText>
+                    <MudSpacer />
+                    <MudIconButton Icon="@Icons.Material.Filled.Edit"
+                                   Size="Size.Small" Color="Color.Default"
+                                   title="Editar"
+                                   OnClick="@(() => Editar(child))" />
+                    <MudIconButton Icon="@Icons.Material.Filled.Delete"
+                                   Size="Size.Small" Color="Color.Error"
+                                   title="Excluir"
+                                   OnClick="@(() => Excluir(child))" />
+                </MudStack>
+            }
+        }
+    </MudPaper>
+}

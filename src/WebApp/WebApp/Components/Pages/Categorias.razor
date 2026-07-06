@@ -1,0 +1,11 @@
+@page "/categorias"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WebApp.Components.Shared
+
+<PageTitle>Categorias</PageTitle>
+
+@if (!string.IsNullOrEmpty(_userId))
+{
+    <CategoriasGrid UserId="@_userId" />
+}
