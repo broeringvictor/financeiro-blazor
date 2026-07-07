@@ -23,21 +23,33 @@ public sealed class VencimentoAlertaService(
 {
     private static readonly CultureInfo PtBr = CultureInfo.GetCultureInfo("pt-BR");
 
-    /// <summary>Busca as faturas pendentes vencidas/a vencer e envia o resumo. Não envia se não houver nenhuma.</summary>
+    /// <summary>
+    /// Busca as faturas pendentes que vencem exatamente numa das datas-alvo (hoje e/ou N dias antes,
+    /// conforme <see cref="VencimentoAlertaOptions.DiasAntecedencia"/>) e envia um único resumo com todas.
+    /// Não envia se não houver nenhuma.
+    /// </summary>
     public async Task<AlertaVencimentoResultado> EnviarAsync(CancellationToken ct = default)
     {
         var hoje = DateOnly.FromDateTime(DateTime.Today);
-        var limite = hoje.AddDays(Math.Max(0, options.DiasAntecedencia));
+        var alvos = DatasAlvo(hoje, options.DiasAntecedencia);
+
+        if (alvos.Count == 0)
+        {
+            logger.LogInformation("Nenhuma data-alvo configurada (VencimentoAlerta:DiasAntecedencia) — alerta não enviado.");
+            return new AlertaVencimentoResultado(false, 0, "");
+        }
 
         var faturas = await db.Invoices
             .Include(i => i.Bill)
-            .Where(i => i.Status == EInvoiceStatus.Pending && i.DeletedAt == null && i.DueDate <= limite)
+            .Where(i => i.Status == EInvoiceStatus.Pending && i.DeletedAt == null && alvos.Contains(i.DueDate))
             .OrderBy(i => i.DueDate)
             .ToListAsync(ct);
 
         if (faturas.Count == 0)
         {
-            logger.LogInformation("Nenhuma fatura pendente vencida ou a vencer até {Limite} — alerta não enviado.", limite);
+            logger.LogInformation(
+                "Nenhuma fatura pendente vencendo nas datas-alvo ({Datas}) — alerta não enviado.",
+                string.Join(", ", alvos.Select(d => d.ToString("dd/MM"))));
             return new AlertaVencimentoResultado(false, 0, "");
         }
 
@@ -51,6 +63,18 @@ public sealed class VencimentoAlertaService(
 
         return new AlertaVencimentoResultado(enviado, faturas.Count, mensagem);
     }
+
+    /// <summary>
+    /// Datas em que uma fatura deve ser alertada, a partir de <paramref name="hoje"/> e dos dias de
+    /// antecedência (0 = no dia). Ignora offsets negativos e remove duplicatas. Público para teste.
+    /// </summary>
+    public static List<DateOnly> DatasAlvo(DateOnly hoje, IEnumerable<int> diasAntecedencia) =>
+        diasAntecedencia
+            .Where(d => d >= 0)
+            .Distinct()
+            .Select(d => hoje.AddDays(d))
+            .OrderBy(d => d)
+            .ToList();
 
     /// <summary>Monta a mensagem do WhatsApp (vencidas primeiro, depois a vencer). Público para teste.</summary>
     public static string MontarMensagem(IReadOnlyList<Invoice> faturas, DateOnly hoje)

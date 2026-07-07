@@ -76,6 +76,9 @@ services:
       # 1 usuário, envio simples: cache local basta (sem Redis, menos peças pra manter).
       - CACHE_REDIS_ENABLED=false
       - CACHE_LOCAL_ENABLED=true
+      # Log enxuto: sem DEBUG/VERBOSE (Baileys só erro). Sobra conexão/envio/erro — o que importa.
+      - LOG_LEVEL=ERROR,WARN,INFO,LOG
+      - LOG_BAILEYS=error
     volumes:
       - evolution-instances:/evolution/instances
     networks:
@@ -100,6 +103,18 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Visualizador de logs (todos os containers, ao vivo, no navegador). Monta o socket do Docker
+  # em modo leitura. Só loopback: acesse via túnel SSH (-L 8083:localhost:8083) ou Caddy.
+  dozzle:
+    image: amir20/dozzle:latest
+    restart: unless-stopped
+    environment:
+      - DOZZLE_NO_ANALYTICS=true
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    ports:
+      - "127.0.0.1:8083:8080"
 
 volumes:
   webapp-data:

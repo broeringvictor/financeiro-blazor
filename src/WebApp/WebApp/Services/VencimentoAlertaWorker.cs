@@ -11,8 +11,11 @@ public sealed class VencimentoAlertaOptions
     /// <summary>Horário do dia (local) em que o alerta é disparado.</summary>
     public TimeOnly HoraExecucao { get; set; } = new(8, 0);
 
-    /// <summary>Faturas que vencem dentro de N dias entram no alerta (além das já vencidas).</summary>
-    public int DiasAntecedencia { get; set; } = 3;
+    /// <summary>
+    /// Dias de antecedência em que uma fatura entra no alerta (0 = no próprio dia do vencimento).
+    /// Padrão: alerta no dia e 2 dias antes.
+    /// </summary>
+    public int[] DiasAntecedencia { get; set; } = [2, 0];
 }
 
 /// <summary>
@@ -43,7 +46,7 @@ public sealed class VencimentoAlertaWorker(
 
         logger.LogInformation(
             "Alerta de vencimentos HABILITADO. Horário diário: {Horario} | Antecedência: {Dias} dia(s).",
-            options.HoraExecucao, options.DiasAntecedencia);
+            options.HoraExecucao, string.Join(", ", options.DiasAntecedencia));
 
         while (!stoppingToken.IsCancellationRequested)
         {
