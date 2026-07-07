@@ -147,6 +147,9 @@ public class Bill : BaseModel
         if (category is { } newCategory && CategoryId != newCategory.Id)
         {
             CategoryId = newCategory.Id;
+            // Mantém a navegação coerente com o FK: sem isso, o "relationship fixup" do EF no Update
+            // usaria a navegação antiga (carregada via Include) e reverteria a troca de categoria.
+            Category = newCategory;
             hasChanges = true;
         }
 

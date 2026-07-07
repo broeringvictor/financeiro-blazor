@@ -123,6 +123,46 @@ VALUES ({id}, {UserId}, {(int)ETransactionTypes.Expense}, {(int)ETransactionCate
     }
 
     [Fact]
+    public async Task EditarConta_TrocaCategoriaPorSubcategoria_Persiste()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        var sut = NovoServico(db);
+
+        var principal = await sut.CriarAsync(UserId, "Saúde", ETransactionTypes.Expense);
+        var sub = await sut.CriarAsync(UserId, "Farmácia", ETransactionTypes.Expense, principal.Id);
+
+        db.Bills.Add(new Bill(UserId, "Plano", "Unimed", principal,
+            new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10))));
+        await db.SaveChangesAsync();
+
+        // Simula o fluxo da UI: carrega a conta com a categoria antiga (Include) num contexto separado,
+        // edita para a subcategoria e persiste via Update.
+        Guid billId;
+        await using (var scope1 = NovoDb(conn))
+        {
+            var conta = await scope1.Bills.AsNoTracking()
+                .Include(b => b.Category).ThenInclude(c => c!.Parent)
+                .SingleAsync();
+            billId = conta.Id;
+            conta.Edit(category: sub);
+
+            await using var scope2 = NovoDb(conn);
+            scope2.Bills.Update(conta);
+            await scope2.SaveChangesAsync();
+        }
+
+        await using var verificacao = NovoDb(conn);
+        var recarregada = await verificacao.Bills.SingleAsync(b => b.Id == billId);
+        Assert.Equal(sub.Id, recarregada.CategoryId);
+    }
+
+    // Novo DbContext sobre a mesma conexão em memória (simula escopos distintos da UI).
+    private static ApplicationDbContext NovoDb(SqliteConnection conn) =>
+        new(new DbContextOptionsBuilder<ApplicationDbContext>().UseSqlite(conn).Options);
+
+    [Fact]
     public async Task GetTree_FiltraPorTipoETrazSubcategorias()
     {
         var (db, conn) = NovoContexto();
