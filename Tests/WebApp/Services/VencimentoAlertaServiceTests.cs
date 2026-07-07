@@ -42,4 +42,15 @@ public class VencimentoAlertaServiceTests
         Assert.Contains("vence 09/07", mensagem);
         Assert.Contains("R$", mensagem);
     }
+
+    [Fact]
+    public void MontarMensagem_FaturaVencida_MarcaComoVencida()
+    {
+        var hoje = new DateOnly(2026, 7, 7);
+        var vencida = new Invoice(UserId, null, new DateOnly(2026, 7, 1), 150m, hoje.AddDays(-3));
+
+        var mensagem = VencimentoAlertaService.MontarMensagem(new[] { vencida }, hoje);
+
+        Assert.Contains("VENCIDA em 04/07", mensagem);
+    }
 }

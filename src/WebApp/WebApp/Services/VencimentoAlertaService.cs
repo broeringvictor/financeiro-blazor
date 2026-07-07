@@ -25,31 +25,38 @@ public sealed class VencimentoAlertaService(
 
     /// <summary>
     /// Busca as faturas pendentes que vencem exatamente numa das datas-alvo (hoje e/ou N dias antes,
-    /// conforme <see cref="VencimentoAlertaOptions.DiasAntecedencia"/>) e envia um único resumo com todas.
-    /// Não envia se não houver nenhuma.
+    /// conforme <see cref="VencimentoAlertaOptions.DiasAntecedencia"/>) e, se
+    /// <see cref="VencimentoAlertaOptions.IncluirVencidas"/>, também as já vencidas ainda pendentes.
+    /// Envia um único resumo com todas. Não envia se não houver nenhuma.
     /// </summary>
     public async Task<AlertaVencimentoResultado> EnviarAsync(CancellationToken ct = default)
     {
         var hoje = DateOnly.FromDateTime(DateTime.Today);
         var alvos = DatasAlvo(hoje, options.DiasAntecedencia);
 
-        if (alvos.Count == 0)
+        if (alvos.Count == 0 && !options.IncluirVencidas)
         {
             logger.LogInformation("Nenhuma data-alvo configurada (VencimentoAlerta:DiasAntecedencia) — alerta não enviado.");
             return new AlertaVencimentoResultado(false, 0, "");
         }
 
-        var faturas = await db.Invoices
+        var incluirVencidas = options.IncluirVencidas;
+        var query = db.Invoices
             .Include(i => i.Bill)
-            .Where(i => i.Status == EInvoiceStatus.Pending && i.DeletedAt == null && alvos.Contains(i.DueDate))
-            .OrderBy(i => i.DueDate)
-            .ToListAsync(ct);
+            .Where(i => i.Status == EInvoiceStatus.Pending && i.DeletedAt == null);
+
+        query = incluirVencidas
+            ? query.Where(i => alvos.Contains(i.DueDate) || i.DueDate < hoje)
+            : query.Where(i => alvos.Contains(i.DueDate));
+
+        var faturas = await query.OrderBy(i => i.DueDate).ToListAsync(ct);
 
         if (faturas.Count == 0)
         {
             logger.LogInformation(
-                "Nenhuma fatura pendente vencendo nas datas-alvo ({Datas}) — alerta não enviado.",
-                string.Join(", ", alvos.Select(d => d.ToString("dd/MM"))));
+                "Nenhuma fatura pendente nas datas-alvo ({Datas}){Vencidas} — alerta não enviado.",
+                string.Join(", ", alvos.Select(d => d.ToString("dd/MM"))),
+                incluirVencidas ? " nem vencidas" : "");
             return new AlertaVencimentoResultado(false, 0, "");
         }
 

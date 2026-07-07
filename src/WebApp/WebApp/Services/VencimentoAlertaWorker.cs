@@ -16,6 +16,12 @@ public sealed class VencimentoAlertaOptions
     /// Padrão: alerta no dia e 2 dias antes.
     /// </summary>
     public int[] DiasAntecedencia { get; set; } = [2, 0];
+
+    /// <summary>
+    /// Quando true, faturas já vencidas e ainda pendentes continuam entrando no alerta todo dia até serem
+    /// pagas (além das datas de antecedência). Padrão: true.
+    /// </summary>
+    public bool IncluirVencidas { get; set; } = true;
 }
 
 /// <summary>
