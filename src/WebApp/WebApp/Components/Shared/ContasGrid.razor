@@ -3,13 +3,13 @@
 @using WebApp.Models.Enums
 
 <MudStack Row="true" AlignItems="AlignItems.Center" Class="mb-4">
-    <MudText Typo="Typo.h6">Contas</MudText>
+    <MudText Typo="Typo.h6">@(_isIncome ? "Entradas" : "Saídas")</MudText>
     <MudSpacer />
     <MudButton Variant="Variant.Filled"
                Color="Color.Primary"
                StartIcon="@Icons.Material.Filled.Add"
                OnClick="NovaConta">
-        Nova conta
+        @(_isIncome ? "Nova entrada" : "Nova saída")
     </MudButton>
 </MudStack>
 
@@ -17,10 +17,10 @@
              RowClick="@(e => VerFaturas(e.Item))" RowStyle="cursor:pointer">
     <Columns>
         <PropertyColumn Property="x => x.Name" Title="Nome" />
-        <PropertyColumn Property="x => x.BillerName" Title="Fornecedor">
+        <PropertyColumn Property="x => x.BillerName" Title="@(_isIncome ? "Fonte" : "Fornecedor")">
             <CellTemplate>
                 @context.Item.BillerName
-                @if (!string.IsNullOrEmpty(context.Item.PixKey))
+                @if (!_isIncome && !string.IsNullOrEmpty(context.Item.PixKey))
                 {
                     <div class="d-flex align-center" @onclick:stopPropagation="true">
                         <MudText Typo="Typo.caption" Class="mud-text-secondary">Pix: @context.Item.PixKey</MudText>
@@ -54,7 +54,7 @@
                 </MudChip>
             </CellTemplate>
         </TemplateColumn>
-        <TemplateColumn Title="Busca auto">
+        <TemplateColumn Title="Busca auto" Hidden="_isIncome">
             <CellTemplate>
                 <MudChip T="string" Size="Size.Small"
                          Color="@(context.Item.AutoSearch ? Color.Info : Color.Default)">
@@ -65,7 +65,7 @@
         <TemplateColumn Title="Ações" CellStyle="white-space:nowrap">
             <CellTemplate>
                 <div @onclick:stopPropagation="true">
-                    @if (context.Item.AutoSearch)
+                    @if (!_isIncome && context.Item.AutoSearch)
                     {
                         <MudIconButton Icon="@Icons.Material.Filled.Search"
                                        Size="Size.Small"
@@ -88,6 +88,6 @@
         </TemplateColumn>
     </Columns>
     <NoRecordsContent>
-        <MudText Class="pa-4">Nenhuma conta cadastrada.</MudText>
+        <MudText Class="pa-4">@(_isIncome ? "Nenhuma entrada cadastrada." : "Nenhuma saída cadastrada.")</MudText>
     </NoRecordsContent>
 </MudDataGrid>

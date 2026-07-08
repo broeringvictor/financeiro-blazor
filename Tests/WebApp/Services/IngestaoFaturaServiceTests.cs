@@ -185,4 +185,29 @@ public class IngestaoFaturaServiceTests
         Assert.Equal(EInvoiceStatus.Paid, atualizada.Status);
         Assert.Equal(tx.Id, atualizada.PaymentTransactionId);
     }
+
+    [Fact]
+    public async Task PagarAsync_FaturaDeEntrada_CriaTransacaoDeReceita()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+
+        // Conta de entrada (categoria de receita) com uma fatura pendente.
+        var categoria = new Category(UserId, "Salário", ETransactionTypes.Income);
+        db.Categories.Add(categoria);
+        var entrada = new Bill(UserId, "Salário", "Empresa X", categoria,
+            new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 5, new DateOnly(2026, 1, 5)));
+        db.Bills.Add(entrada);
+        var fatura = new Invoice(UserId, entrada.Id, new DateOnly(2026, 7, 1), 5000m, new DateOnly(2026, 7, 5));
+        db.Invoices.Add(fatura);
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        var tx = await sut.PagarAsync(fatura.Id, UserId);
+
+        Assert.Equal(ETransactionTypes.Income, tx.Type);
+        Assert.Equal(categoria.Id, tx.CategoryId);
+        Assert.Equal(5000m, tx.Amount);
+    }
 }

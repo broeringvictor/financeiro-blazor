@@ -10,6 +10,7 @@ public class BillTests
 
     private static readonly Category Contas = new(UserId, "Contas", ETransactionTypes.Expense);
     private static readonly Category CategoriaReceita = new(UserId, "Salário", ETransactionTypes.Income);
+    private static readonly Category CategoriaTransferencia = new(UserId, "Entre contas", ETransactionTypes.Transfer);
 
     private static RecurrenceRule Mensal() =>
         new(ERecurrenceFrequency.Monthly, 1, 10, new DateOnly(2026, 1, 10));
@@ -31,10 +32,19 @@ public class BillTests
     }
 
     [Fact]
-    public void Create_ComCategoriaNaoDespesa_DeveLancar()
+    public void Create_ComCategoriaReceita_DeveCriarEntrada()
+    {
+        var entrada = new Bill(UserId, "Salário", "Empresa", CategoriaReceita, Mensal());
+
+        // A navegação Category não é atribuída no construtor (ver Bill.cs); o vínculo é só o FK.
+        Assert.Equal(CategoriaReceita.Id, entrada.CategoryId);
+    }
+
+    [Fact]
+    public void Create_ComCategoriaTransferencia_DeveLancar()
     {
         Assert.Throws<ArgumentException>(() =>
-            new Bill(UserId, "Salário", "Empresa", CategoriaReceita, Mensal()));
+            new Bill(UserId, "Movimentação", "Banco", CategoriaTransferencia, Mensal()));
     }
 
     [Fact]

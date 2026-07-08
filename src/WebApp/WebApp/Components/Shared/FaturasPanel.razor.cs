@@ -3,6 +3,7 @@ using Microsoft.Extensions.DependencyInjection;
 using MudBlazor;
 using WebApp.Data;
 using WebApp.Models;
+using WebApp.Models.Enums;
 using WebApp.Services;
 
 namespace WebApp.Components.Shared;
@@ -24,13 +25,17 @@ public partial class FaturasPanel : ComponentBase
     /// <summary>Quando informado, restringe às faturas de uma única conta (Bill).</summary>
     [Parameter] public Guid? BillId { get; set; }
 
+    /// <summary>Quando informado (visão geral), restringe às faturas de entradas ou de saídas.</summary>
+    [Parameter] public ETransactionTypes? Tipo { get; set; }
+
     private InvoicesGrid? _grid;
 
     private async Task PagarFatura(Invoice invoice)
     {
+        var tipoTransacao = Tipo == ETransactionTypes.Income ? "receita" : "despesa";
         var confirmado = await DialogService.ShowMessageBoxAsync(
             "Pagar fatura",
-            $"Confirmar pagamento de {invoice.Amount:C}? Isso cria uma transação de despesa.",
+            $"Confirmar pagamento de {invoice.Amount:C}? Isso cria uma transação de {tipoTransacao}.",
             yesText: "Pagar",
             cancelText: "Cancelar");
 

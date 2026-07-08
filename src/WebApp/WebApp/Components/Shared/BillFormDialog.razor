@@ -9,9 +9,9 @@
     <DialogContent>
         <MudStack Spacing="3" Style="min-width:420px">
             <MudTextField @bind-Value="_name" Label="Nome" Variant="Variant.Outlined" Required="true" />
-            <MudTextField @bind-Value="_billerName" Label="Fornecedor" Variant="Variant.Outlined" Required="true" />
+            <MudTextField @bind-Value="_billerName" Label="@(_isIncome ? "Fonte/Pagador" : "Fornecedor")" Variant="Variant.Outlined" Required="true" />
 
-            <CategoryPicker Categories="_expenseCategories"
+            <CategoryPicker Categories="_categories"
                             Value="_categoryId"
                             ValueChanged="@(id => _categoryId = id)"
                             Label="Categoria" />
@@ -35,21 +35,24 @@
             <MudNumericField @bind-Value="_fixedAmount" Label="Valor fixo (opcional)" Variant="Variant.Outlined"
                              Adornment="Adornment.Start" AdornmentText="R$" />
 
-            <MudTextField @bind-Value="_searchQuery"
-                          Label="Consulta de busca (contexto p/ o agente)"
-                          HelperText="Ex.: Celesc fatura OR boleto newer_than:120d"
-                          Variant="Variant.Outlined"
-                          Lines="2" />
+            @if (!_isIncome)
+            {
+                <MudTextField @bind-Value="_searchQuery"
+                              Label="Consulta de busca (contexto p/ o agente)"
+                              HelperText="Ex.: Celesc fatura OR boleto newer_than:120d"
+                              Variant="Variant.Outlined"
+                              Lines="2" />
 
-            <MudTextField @bind-Value="_pixKey"
-                          Label="Chave Pix do fornecedor (opcional)"
-                          HelperText="Útil pra contas pagas manualmente, sem boleto por e-mail"
-                          Variant="Variant.Outlined"
-                          Adornment="Adornment.End"
-                          AdornmentIcon="@Icons.Material.Filled.ContentCopy"
-                          OnAdornmentClick="CopiarPix" />
+                <MudTextField @bind-Value="_pixKey"
+                              Label="Chave Pix do fornecedor (opcional)"
+                              HelperText="Útil pra contas pagas manualmente, sem boleto por e-mail"
+                              Variant="Variant.Outlined"
+                              Adornment="Adornment.End"
+                              AdornmentIcon="@Icons.Material.Filled.ContentCopy"
+                              OnAdornmentClick="CopiarPix" />
 
-            <MudSwitch @bind-Value="_autoSearch" Label="Busca automática" Color="Color.Primary" />
+                <MudSwitch @bind-Value="_autoSearch" Label="Busca automática" Color="Color.Primary" />
+            }
 
             @if (Bill is not null)
             {
@@ -81,7 +84,12 @@
     /// <summary>Dono da conta (modo criação).</summary>
     [Parameter] public string UserId { get; set; } = string.Empty;
 
-    private IReadOnlyList<Category> _expenseCategories = [];
+    /// <summary>Tipo do lançamento sendo criado/editado (entrada ou saída). Define as categorias e os campos exibidos.</summary>
+    [Parameter] public ETransactionTypes Tipo { get; set; } = ETransactionTypes.Expense;
+
+    private bool _isIncome => Tipo == ETransactionTypes.Income;
+
+    private IReadOnlyList<Category> _categories = [];
 
     private string _name = string.Empty;
     private string _billerName = string.Empty;
@@ -102,11 +110,11 @@
     {
         await using var scope = ScopeFactory.CreateAsyncScope();
         var categorias = scope.ServiceProvider.GetRequiredService<CategoryService>();
-        _expenseCategories = await categorias.GetTreeAsync(UserId, ETransactionTypes.Expense);
+        _categories = await categorias.GetTreeAsync(UserId, Tipo);
 
         if (Bill is null)
         {
-            _categoryId = _expenseCategories.FirstOrDefault()?.Id;
+            _categoryId = _categories.FirstOrDefault()?.Id;
             return;
         }
 
@@ -164,7 +172,7 @@
     }
 
     private Category? ResolverCategoria(Guid id) =>
-        _expenseCategories.Select(c => c.Id == id ? c : c.Children.FirstOrDefault(f => f.Id == id))
+        _categories.Select(c => c.Id == id ? c : c.Children.FirstOrDefault(f => f.Id == id))
             .FirstOrDefault(c => c is not null);
 
     private void Cancel() => MudDialog.Cancel();

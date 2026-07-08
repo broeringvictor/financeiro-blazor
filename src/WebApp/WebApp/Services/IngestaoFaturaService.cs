@@ -3,8 +3,32 @@ using Services.Pdf;
 using WebApp.Data;
 using WebApp.Models;
 using WebApp.Models.Enums;
+using WebApp.Models.ValueObjects;
 
 namespace WebApp.Services;
+
+/// <summary>Situação de uma fatura na importação por arquivo.</summary>
+public enum ImportacaoStatus
+{
+    /// <summary>Fatura nova criada e associada à conta casada.</summary>
+    Criada,
+
+    /// <summary>Já havia fatura na mesma conta/competência; foi atualizada.</summary>
+    Atualizada,
+
+    /// <summary>Nenhuma conta existente casou com a fatura; nada foi criado.</summary>
+    SemConta,
+
+    /// <summary>Faltaram dados mínimos (valor e datas) para registrar a fatura.</summary>
+    SemDados,
+}
+
+/// <summary>Resultado da importação de uma única fatura de arquivo.</summary>
+public sealed record ResultadoImportacao(
+    Invoice? Invoice,
+    ImportacaoStatus Status,
+    bool AjustouInicioConta,
+    string? Conta);
 
 /// <summary>
 /// Persiste faturas a partir dos dados extraídos pelo agente e registra o pagamento (cria a Transaction).
@@ -26,6 +50,47 @@ public sealed class IngestaoFaturaService(
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
 
         var bill = await MatchBillAsync(userId, dados, ct);
+        var (invoice, _) = await PersistirFaturaAsync(userId, dados, bill, ct);
+        return invoice;
+    }
+
+    /// <summary>
+    /// Importa uma fatura vinda de arquivo (fluxo em lote): casa com uma conta existente e, se casar, registra
+    /// a fatura — recuando a data de início da conta quando a fatura for anterior a ela. Sem conta correspondente
+    /// não cria nada (<see cref="ImportacaoStatus.SemConta"/>); sem valor nem datas, <see cref="ImportacaoStatus.SemDados"/>.
+    /// </summary>
+    public async Task<ResultadoImportacao> ImportarDeArquivoAsync(
+        string userId, FaturaExtraida dados, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+        if (dados.Valor is null && dados.Vencimento is null && dados.Emissao is null)
+        {
+            return new ResultadoImportacao(null, ImportacaoStatus.SemDados, false, null);
+        }
+
+        var bill = await MatchBillAsync(userId, dados, ct);
+        if (bill is null)
+        {
+            return new ResultadoImportacao(null, ImportacaoStatus.SemConta, false, null);
+        }
+
+        // Recua o início pela mesma data que define a competência (emissão, senão vencimento).
+        var dataCompetencia = dados.Emissao ?? dados.Vencimento;
+        var ajustou = dataCompetencia is { } data && await RecuarInicioContaSeAnteriorAsync(bill, data, ct);
+
+        var (invoice, criada) = await PersistirFaturaAsync(userId, dados, bill, ct);
+        return new ResultadoImportacao(
+            invoice,
+            criada ? ImportacaoStatus.Criada : ImportacaoStatus.Atualizada,
+            ajustou,
+            bill.Name);
+    }
+
+    /// <summary>Núcleo de persistência (dedupe por e-mail e por conta/competência); devolve se a fatura é nova.</summary>
+    private async Task<(Invoice Invoice, bool Criada)> PersistirFaturaAsync(
+        string userId, FaturaExtraida dados, Bill? bill, CancellationToken ct)
+    {
         var valor = ValidarValor(bill, dados.Valor);
 
         // 1) Dedupe pelo e-mail de origem.
@@ -41,7 +106,7 @@ public sealed class IngestaoFaturaService(
             {
                 existentePorEmail.UpdateFromExtraction(valor, dados.Vencimento, dados.Emissao, dados.PdfPath, dados.TextoBruto);
                 await db.SaveChangesAsync(ct);
-                return existentePorEmail;
+                return (existentePorEmail, false);
             }
         }
 
@@ -59,7 +124,7 @@ public sealed class IngestaoFaturaService(
             {
                 existentePorPeriodo.UpdateFromExtraction(valor, dados.Vencimento, dados.Emissao, dados.PdfPath, dados.TextoBruto);
                 await db.SaveChangesAsync(ct);
-                return existentePorPeriodo;
+                return (existentePorPeriodo, false);
             }
         }
 
@@ -76,7 +141,33 @@ public sealed class IngestaoFaturaService(
 
         db.Invoices.Add(nova);
         await db.SaveChangesAsync(ct);
-        return nova;
+        return (nova, true);
+    }
+
+    /// <summary>
+    /// Recua a data de início da recorrência da conta para o 1º dia do mês da fatura quando esta é anterior ao
+    /// início atual, preservando frequência, intervalo, dia de vencimento e fim. A geração automática só olha do
+    /// mês corrente pra frente, então recuar o início não cria faturas retroativas — apenas torna a recorrência
+    /// coerente com o histórico importado. Devolve se houve ajuste.
+    /// </summary>
+    private async Task<bool> RecuarInicioContaSeAnteriorAsync(Bill bill, DateOnly dataFatura, CancellationToken ct)
+    {
+        var regra = bill.Recurrence;
+        if (dataFatura >= regra.StartDate)
+        {
+            return false;
+        }
+
+        var novoInicio = PrimeiroDiaDoMes(dataFatura);
+        var nova = new RecurrenceRule(regra.Frequency, regra.Interval, regra.DueDay, novoInicio, regra.EndDate);
+        bill.Edit(recurrence: nova);
+        await db.SaveChangesAsync(ct);
+
+        logger.LogInformation(
+            "Data de início da conta '{Conta}' recuada de {De:yyyy-MM-dd} para {Para:yyyy-MM-dd} por fatura importada anterior.",
+            bill.Name, regra.StartDate, novoInicio);
+
+        return true;
     }
 
     /// <summary>
@@ -97,7 +188,10 @@ public sealed class IngestaoFaturaService(
         return valorExtraido;
     }
 
-    /// <summary>Quita a fatura: cria uma Transaction (Expense) e liga-a à fatura (1:1).</summary>
+    /// <summary>
+    /// Quita a fatura: cria uma Transaction do mesmo tipo da conta (saída → despesa, entrada → receita)
+    /// e liga-a à fatura (1:1). Faturas avulsas (sem conta) são tratadas como despesa.
+    /// </summary>
     public async Task<Transaction> PagarAsync(Guid invoiceId, string userId, CancellationToken ct = default)
     {
         var invoice = await db.Invoices
@@ -111,11 +205,13 @@ public sealed class IngestaoFaturaService(
             throw new InvalidOperationException("Valor da fatura ainda não reconhecido; ajuste o valor antes de pagar.");
         }
 
+        // O tipo da transação segue a categoria da conta (entrada vira receita); avulsa cai em despesa.
+        var tipo = invoice.Bill?.Category?.Type ?? ETransactionTypes.Expense;
         var categoria = invoice.Bill?.Category
-                        ?? await categoryService.ResolveDefaultAsync(userId, ETransactionTypes.Expense, ct);
+                        ?? await categoryService.ResolveDefaultAsync(userId, tipo, ct);
         var titulo = $"Fatura {invoice.Bill?.Name ?? "avulsa"}";
 
-        var transaction = new Transaction(userId, ETransactionTypes.Expense, categoria, titulo, null, invoice.Amount);
+        var transaction = new Transaction(userId, tipo, categoria, titulo, null, invoice.Amount);
 
         db.Transactions.Add(transaction);
         invoice.RegisterPayment(transaction.Id);

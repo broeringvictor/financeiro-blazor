@@ -5,11 +5,15 @@ using Microsoft.JSInterop;
 using MudBlazor;
 using WebApp.Data;
 using WebApp.Models;
+using WebApp.Models.Enums;
 using WebApp.Services;
 
 namespace WebApp.Components.Shared;
 
-/// <summary>Grade de contas (Bill) com as ações de CRUD, busca de fatura e o histórico de faturas de cada conta.</summary>
+/// <summary>
+/// Grade de lançamentos (Bill) de um tipo — entradas ou saídas — com as ações de CRUD, busca de fatura
+/// e o histórico de faturas de cada lançamento.
+/// </summary>
 public partial class ContasGrid : ComponentBase
 {
     [Inject] private IDialogService DialogService { get; set; } = default!;
@@ -24,6 +28,11 @@ public partial class ContasGrid : ComponentBase
 
     /// <summary>Dono das contas exibidas.</summary>
     [Parameter, EditorRequired] public string UserId { get; set; } = string.Empty;
+
+    /// <summary>Tipo dos lançamentos exibidos nesta grade (entradas ou saídas).</summary>
+    [Parameter] public ETransactionTypes Tipo { get; set; } = ETransactionTypes.Expense;
+
+    private bool _isIncome => Tipo == ETransactionTypes.Income;
 
     private IReadOnlyList<Bill> _bills = [];
 
@@ -44,10 +53,17 @@ public partial class ContasGrid : ComponentBase
         await using var scope = ScopeFactory.CreateAsyncScope();
         var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
 
-        _bills = await db.Bills
+        var query = db.Bills
             .AsNoTracking()
             .Include(b => b.Category).ThenInclude(c => c!.Parent)
-            .Where(b => b.UserId == UserId && b.DeletedAt == null)
+            .Where(b => b.UserId == UserId && b.DeletedAt == null);
+
+        // Entradas são só as com categoria de receita; saídas incluem os legados sem categoria (tratados como despesa).
+        query = _isIncome
+            ? query.Where(b => b.Category != null && b.Category.Type == ETransactionTypes.Income)
+            : query.Where(b => b.Category == null || b.Category.Type == ETransactionTypes.Expense);
+
+        _bills = await query
             .OrderBy(b => b.Name)
             .ToListAsync();
     }
@@ -60,13 +76,18 @@ public partial class ContasGrid : ComponentBase
             return;
         }
 
-        var parameters = new DialogParameters<BillFormDialog> { { x => x.UserId, UserId } };
-        var dialog = await DialogService.ShowAsync<BillFormDialog>("Nova conta", parameters, OpcoesDialogo());
+        var parameters = new DialogParameters<BillFormDialog>
+        {
+            { x => x.UserId, UserId },
+            { x => x.Tipo, Tipo },
+        };
+        var titulo = _isIncome ? "Nova entrada" : "Nova saída";
+        var dialog = await DialogService.ShowAsync<BillFormDialog>(titulo, parameters, OpcoesDialogo());
         var result = await dialog.Result;
 
         if (result is { Canceled: false, Data: Bill nova })
         {
-            await PersistirAsync(db => db.Bills.Add(nova), "Conta criada.");
+            await PersistirAsync(db => db.Bills.Add(nova), $"{(_isIncome ? "Entrada" : "Saída")} criada.");
             await GerarFaturasEmAbertoAsync(nova);
         }
     }
@@ -77,14 +98,16 @@ public partial class ContasGrid : ComponentBase
         {
             { x => x.Bill, bill },
             { x => x.UserId, UserId },
+            { x => x.Tipo, Tipo },
         };
 
-        var dialog = await DialogService.ShowAsync<BillFormDialog>("Editar conta", parameters, OpcoesDialogo());
+        var titulo = _isIncome ? "Editar entrada" : "Editar saída";
+        var dialog = await DialogService.ShowAsync<BillFormDialog>(titulo, parameters, OpcoesDialogo());
         var result = await dialog.Result;
 
         if (result is { Canceled: false, Data: Bill editada })
         {
-            await PersistirAsync(db => db.Bills.Update(editada), "Conta atualizada.");
+            await PersistirAsync(db => db.Bills.Update(editada), $"{(_isIncome ? "Entrada" : "Saída")} atualizada.");
             await GerarFaturasEmAbertoAsync(editada);
         }
     }
@@ -179,8 +202,9 @@ public partial class ContasGrid : ComponentBase
 
     private async Task ExcluirConta(Bill bill)
     {
+        var rotulo = _isIncome ? "entrada" : "saída";
         var confirmado = await DialogService.ShowMessageBoxAsync(
-            "Excluir conta",
+            $"Excluir {rotulo}",
             $"Deseja excluir \"{bill.Name}\"?",
             yesText: "Excluir",
             cancelText: "Cancelar");
@@ -204,7 +228,7 @@ public partial class ContasGrid : ComponentBase
             alvo.Delete();
             await db.SaveChangesAsync();
 
-            Snackbar.Add("Conta excluída.", Severity.Success);
+            Snackbar.Add($"{char.ToUpper(rotulo[0]) + rotulo[1..]} excluída.", Severity.Success);
             await CarregarAsync();
         }
         catch (Exception ex)

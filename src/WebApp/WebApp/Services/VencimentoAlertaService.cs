@@ -43,7 +43,11 @@ public sealed class VencimentoAlertaService(
         var incluirVencidas = options.IncluirVencidas;
         var query = db.Invoices
             .Include(i => i.Bill)
-            .Where(i => i.Status == EInvoiceStatus.Pending && i.DeletedAt == null);
+            .Where(i => i.Status == EInvoiceStatus.Pending && i.DeletedAt == null)
+            // Só saídas: entradas (recebíveis) não entram no alerta de "contas a vencer".
+            // Faturas avulsas (sem Bill) e legadas (sem categoria) são tratadas como saída.
+            .Where(i => i.Bill == null || i.Bill.Category == null
+                        || i.Bill.Category.Type != ETransactionTypes.Income);
 
         query = incluirVencidas
             ? query.Where(i => alvos.Contains(i.DueDate) || i.DueDate < hoje)

@@ -4,7 +4,7 @@ using Microsoft.AspNetCore.Components.Authorization;
 
 namespace WebApp.Components.Pages;
 
-public partial class Contas : ComponentBase
+public partial class Lancamentos : ComponentBase
 {
     [CascadingParameter] private Task<AuthenticationState>? AuthState { get; set; }
 

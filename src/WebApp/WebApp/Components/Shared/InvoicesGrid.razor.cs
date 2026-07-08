@@ -19,6 +19,19 @@ public partial class InvoicesGrid : ComponentBase
     /// <summary>Quando informado, restringe às faturas de uma única conta (Bill).</summary>
     [Parameter] public Guid? BillId { get; set; }
 
+    /// <summary>
+    /// Quando informado (e sem <see cref="BillId"/>), restringe às faturas de entradas ou de saídas.
+    /// Null = todas (usado no modal de uma conta específica).
+    /// </summary>
+    [Parameter] public ETransactionTypes? Tipo { get; set; }
+
+    private string Titulo => Tipo switch
+    {
+        ETransactionTypes.Income => "Entradas",
+        ETransactionTypes.Expense => "Saídas",
+        _ => "Faturas",
+    };
+
     /// <summary>Disparado ao clicar em pagar uma fatura.</summary>
     [Parameter] public EventCallback<Invoice> OnPay { get; set; }
 
@@ -67,6 +80,16 @@ public partial class InvoicesGrid : ComponentBase
         if (BillId is { } billId)
         {
             query = query.Where(i => i.BillId == billId);
+        }
+        else if (Tipo is { } tipo)
+        {
+            // Entradas: só faturas de contas com categoria de receita.
+            // Saídas: despesas + avulsas (sem conta) + legadas (sem categoria).
+            query = tipo == ETransactionTypes.Income
+                ? query.Where(i => i.Bill != null && i.Bill.Category != null
+                                   && i.Bill.Category.Type == ETransactionTypes.Income)
+                : query.Where(i => i.Bill == null || i.Bill.Category == null
+                                   || i.Bill.Category.Type == ETransactionTypes.Expense);
         }
 
         if (_statusFilter is { } status)

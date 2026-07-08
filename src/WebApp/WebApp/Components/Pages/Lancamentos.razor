@@ -1,0 +1,16 @@
+@page "/lancamentos"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@rendermode InteractiveServer
+@using WebApp.Components.Shared
+@using WebApp.Models.Enums
+
+<PageTitle>Lançamentos</PageTitle>
+
+@if (!string.IsNullOrEmpty(_userId))
+{
+    <ContasGrid UserId="@_userId" Tipo="ETransactionTypes.Income" />
+
+    <MudDivider Class="my-8" />
+
+    <ContasGrid UserId="@_userId" Tipo="ETransactionTypes.Expense" />
+}

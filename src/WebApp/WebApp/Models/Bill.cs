@@ -7,7 +7,8 @@ using WebApp.Models.ValueObjects;
 namespace WebApp.Models;
 
 /// <summary>
-/// Conta: obrigação recorrente do usuário (ex.: "Luz - Celesc"). Define o fornecedor, a categoria,
+/// Lançamento recorrente do usuário: uma saída (ex.: "Luz - Celesc") ou uma entrada (ex.: "Salário").
+/// Define a fonte/fornecedor, a categoria (cujo <see cref="ETransactionTypes"/> determina se é entrada ou saída),
 /// a recorrência e as regras para reconhecer a fatura no e-mail. As cobranças concretas são <see cref="Invoice"/>.
 /// </summary>
 public class Bill : BaseModel
@@ -35,13 +36,19 @@ public class Bill : BaseModel
     } = string.Empty;
 
     /// <summary>
-    /// Categoria de despesa (principal ou subcategoria). Nula apenas em linhas legadas ainda não migradas;
-    /// toda conta criada pelo domínio recebe uma categoria obrigatória.
+    /// Categoria do lançamento (despesa ou receita, principal ou subcategoria). Nula apenas em linhas legadas
+    /// ainda não migradas; todo lançamento criado pelo domínio recebe uma categoria obrigatória.
     /// </summary>
     public Guid? CategoryId { get; private set; }
 
     /// <summary>Navegação para a categoria.</summary>
     public Category? Category { get; private set; }
+
+    /// <summary>
+    /// Tipo do lançamento (entrada/saída), derivado da categoria. Null apenas em linhas legadas sem categoria
+    /// — que são tratadas como despesa.
+    /// </summary>
+    public ETransactionTypes? Type => Category?.Type;
 
     /// <summary>
     /// Categoria legada (enum) da versão anterior, mantida apenas para o backfill de <see cref="CategoryId"/>.
@@ -99,13 +106,16 @@ public class Bill : BaseModel
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(userId);
         ArgumentNullException.ThrowIfNull(recurrence);
-        EnsureExpenseCategory(category);
+        EnsureLancamentoCategory(category);
         EnsureFixedAmountValid(fixedAmount);
 
         UserId = userId;
         Name = name;
         BillerName = billerName;
         CategoryId = category.Id;
+        // Não atribuímos a navegação Category aqui de propósito: a categoria vem AsNoTracking da UI,
+        // e anexá-la a um Bill novo faz o EF tentar INSERT nela (UNIQUE constraint em Categories.Id).
+        // O tipo (entrada/saída) é derivado depois via query com Include(b => b.Category).
         Recurrence = recurrence;
         FixedAmount = fixedAmount;
         AutoSearch = autoSearch;
@@ -126,7 +136,7 @@ public class Bill : BaseModel
         string? pixKey = null)
     {
         if (category is { } cat)
-            EnsureExpenseCategory(cat);
+            EnsureLancamentoCategory(cat);
         if (fixedAmount is not null)
             EnsureFixedAmountValid(fixedAmount);
 
@@ -222,14 +232,15 @@ public class Bill : BaseModel
                || s.Contains(BillerName, StringComparison.OrdinalIgnoreCase);
     }
 
-    private static void EnsureExpenseCategory(Category category)
+    private static void EnsureLancamentoCategory(Category category)
     {
         ArgumentNullException.ThrowIfNull(category);
 
-        if (category.Type != ETransactionTypes.Expense)
+        if (category.Type == ETransactionTypes.Transfer)
         {
             throw new ArgumentException(
-                $"A categoria '{category.Name}' não é uma categoria de despesa.", nameof(category));
+                $"A categoria '{category.Name}' é de transferência e não pode ser usada em um lançamento.",
+                nameof(category));
         }
     }
 

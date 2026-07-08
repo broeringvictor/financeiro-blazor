@@ -1,11 +1,8 @@
 @page "/contas"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
-@rendermode InteractiveServer
-@using WebApp.Components.Shared
+@inject NavigationManager Navigation
 
-<PageTitle>Contas</PageTitle>
-
-@if (!string.IsNullOrEmpty(_userId))
-{
-    <ContasGrid UserId="@_userId" />
+@code {
+    // Rota legada: "Contas" virou "Lançamentos" (entradas + saídas). Mantém bookmarks antigos funcionando.
+    protected override void OnInitialized() => Navigation.NavigateTo("/lancamentos", replace: true);
 }

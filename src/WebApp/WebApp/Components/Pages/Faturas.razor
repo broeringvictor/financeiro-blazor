@@ -2,8 +2,17 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 @rendermode InteractiveServer
 @using WebApp.Components.Shared
+@using WebApp.Models.Enums
 
 <PageTitle>Faturas</PageTitle>
 
 <MudText Typo="Typo.h5" Class="mb-4">Faturas</MudText>
-<FaturasPanel UserId="@_userId" />
+
+@if (!string.IsNullOrEmpty(_userId))
+{
+    <FaturasPanel UserId="@_userId" Tipo="ETransactionTypes.Income" />
+
+    <MudDivider Class="my-8" />
+
+    <FaturasPanel UserId="@_userId" Tipo="ETransactionTypes.Expense" />
+}
