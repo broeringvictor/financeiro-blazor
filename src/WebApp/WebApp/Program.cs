@@ -152,12 +152,15 @@ else
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
-// Em dev não redireciona pra HTTPS: as chamadas server-to-server (ex.: webhook da Evolution rodando em
-// container para http://host.docker.internal:5078) quebrariam ao serem redirecionadas para o https com
-// certificado self-signed. Em produção o Caddy termina o TLS, então o redirect vale.
+// HTTPS redirect: em dev não redireciona (chamadas server-to-server quebrariam com cert self-signed).
+// Em prod redireciona tudo EXCETO o webhook da Evolution — que chega pela rede docker interna via http
+// (evolution-api → http://webapp:8080/webhooks/...) e quebraria ao ser redirecionado pro https sem cert
+// válido internamente. O Caddy termina o TLS pro tráfego de navegador; o webhook nunca é exposto fora da rede.
 if (!app.Environment.IsDevelopment())
 {
-    app.UseHttpsRedirection();
+    app.UseWhen(
+        ctx => !ctx.Request.Path.StartsWithSegments("/webhooks"),
+        branch => branch.UseHttpsRedirection());
 }
 
 

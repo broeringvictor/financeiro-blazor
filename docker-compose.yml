@@ -26,6 +26,10 @@ services:
       - Evolution__ApiKey=${EVOLUTION_API_KEY:?defina EVOLUTION_API_KEY no .env}
       - Evolution__Instance=${EVOLUTION_INSTANCE:-financeiro}
       - Evolution__RecipientNumber=${EVOLUTION_RECIPIENT_NUMBER:?defina EVOLUTION_RECIPIENT_NUMBER no .env}
+      # Importação de boletos recebidos no grupo (webhook). OwnerUserId vazio = único usuário do banco.
+      # PDFs salvos no volume persistente (não em /tmp), pra sobreviver a restart e o "ver PDF" funcionar.
+      - Evolution__OwnerUserId=${EVOLUTION_OWNER_USER_ID:-}
+      - Evolution__DownloadDirectory=/app/data/faturas
     volumes:
       - webapp-data:/app/data
     networks:
@@ -76,6 +80,11 @@ services:
       # 1 usuário, envio simples: cache local basta (sem Redis, menos peças pra manter).
       - CACHE_REDIS_ENABLED=false
       - CACHE_LOCAL_ENABLED=true
+      # Webhook global: ao chegar mensagem (MESSAGES_UPSERT), a Evolution POSTa no webapp pela rede interna.
+      # O token na URL é a própria ApiKey (o endpoint valida contra ela). host: "webapp" = nome do serviço.
+      - WEBHOOK_GLOBAL_ENABLED=true
+      - WEBHOOK_GLOBAL_URL=http://webapp:8080/webhooks/evolution/${EVOLUTION_API_KEY}
+      - WEBHOOK_EVENTS_MESSAGES_UPSERT=true
       # Log enxuto: sem DEBUG/VERBOSE (Baileys só erro). Sobra conexão/envio/erro — o que importa.
       - LOG_LEVEL=ERROR,WARN,INFO,LOG
       - LOG_BAILEYS=error
