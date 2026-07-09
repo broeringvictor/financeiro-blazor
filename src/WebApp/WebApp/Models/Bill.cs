@@ -232,6 +232,27 @@ public class Bill : BaseModel
                || s.Contains(BillerName, StringComparison.OrdinalIgnoreCase);
     }
 
+    /// <summary>
+    /// Match determinístico de uma fatura a esta conta: o fornecedor informado contém (ou é contido por) o
+    /// fornecedor cadastrado, ou o nome do fornecedor cadastrado aparece no texto do boleto/PDF.
+    /// </summary>
+    public bool MatchesFatura(string? fornecedor, string? texto)
+    {
+        if (string.IsNullOrWhiteSpace(BillerName))
+        {
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(fornecedor)
+            && (BillerName.Contains(fornecedor, StringComparison.OrdinalIgnoreCase)
+                || fornecedor.Contains(BillerName, StringComparison.OrdinalIgnoreCase)))
+        {
+            return true;
+        }
+
+        return MatchesEmail(fornecedor, texto);
+    }
+
     private static void EnsureLancamentoCategory(Category category)
     {
         ArgumentNullException.ThrowIfNull(category);

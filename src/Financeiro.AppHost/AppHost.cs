@@ -46,6 +46,15 @@ var evolution = builder.AddContainer("evolution-api", "evoapicloud/evolution-api
 // SERVER_URL = o próprio endpoint (a Evolution usa pra montar URLs de QR code/mídia).
 evolution.WithEnvironment("SERVER_URL", evolution.GetEndpoint("http"));
 
+// Webhook global de entrada: a Evolution POSTa MESSAGES_UPSERT no WebApp quando chega mensagem no grupo
+// (importação de boletos). Do container, o host é "host.docker.internal"; a porta 5078 é fixa no launchSettings
+// do WebApp. O token na URL é a própria ApiKey global (validada pelo endpoint), então nada de segredo novo.
+var webhookUrl = ReferenceExpression.Create(
+    $"http://host.docker.internal:5078/webhooks/evolution/{evolutionApiKey.Resource}");
+evolution.WithEnvironment("WEBHOOK_GLOBAL_ENABLED", "true");
+evolution.WithEnvironment("WEBHOOK_GLOBAL_URL", webhookUrl);
+evolution.WithEnvironment("WEBHOOK_EVENTS_MESSAGES_UPSERT", "true");
+
 // Front-end Blazor. Roda o agente no próprio processo, então também recebe as credenciais.
 // O alerta de vencimentos por WhatsApp vive aqui (o WebApp tem o banco de faturas e é o que roda
 // em produção), então recebe o endpoint da Evolution + o segredo compartilhado.

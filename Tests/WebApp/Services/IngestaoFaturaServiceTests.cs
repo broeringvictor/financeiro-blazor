@@ -210,4 +210,136 @@ public class IngestaoFaturaServiceTests
         Assert.Equal(categoria.Id, tx.CategoryId);
         Assert.Equal(5000m, tx.Amount);
     }
+
+    [Fact]
+    public async Task ImportarDeArquivo_FaturaAnteriorAoInicio_CriaERecuaInicioDaConta()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(CriarContaCelesc(db)); // início em 2026-01-10
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        // Fatura de dezembro/2025, anterior ao início da conta.
+        var dados = new FaturaExtraida("Celesc", 187.42m,
+            new DateOnly(2025, 12, 5), new DateOnly(2025, 12, 15), null, null, "Fatura Celesc energia");
+
+        var resultado = await sut.ImportarDeArquivoAsync(UserId, dados);
+
+        Assert.Equal(ImportacaoStatus.Criada, resultado.Status);
+        Assert.True(resultado.AjustouInicioConta);
+        Assert.Equal("Luz - Celesc", resultado.Conta);
+
+        var bill = await db.Bills.FirstAsync();
+        Assert.Equal(new DateOnly(2025, 12, 1), bill.Recurrence.StartDate); // recuado para o mês da fatura
+        Assert.Equal(1, await db.Invoices.CountAsync());
+    }
+
+    [Fact]
+    public async Task ImportarDeArquivo_FaturaDentroDoPeriodo_NaoRecuaInicio()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(CriarContaCelesc(db));
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        var dados = new FaturaExtraida("Celesc", 200m,
+            new DateOnly(2026, 3, 5), new DateOnly(2026, 3, 15), null, null, "Fatura Celesc");
+
+        var resultado = await sut.ImportarDeArquivoAsync(UserId, dados);
+
+        Assert.Equal(ImportacaoStatus.Criada, resultado.Status);
+        Assert.False(resultado.AjustouInicioConta);
+
+        var bill = await db.Bills.FirstAsync();
+        Assert.Equal(new DateOnly(2026, 1, 10), bill.Recurrence.StartDate); // inalterado
+    }
+
+    [Fact]
+    public async Task ImportarDeArquivo_ComCompetenciaDaReferencia_DefineCompetenciaDaFatura()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(CriarContaCelesc(db));
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        // Emissão/vencimento em julho, mas a referência do boleto é junho → a fatura deve ficar em junho.
+        var dados = new FaturaExtraida("Celesc", 361.81m,
+            new DateOnly(2026, 7, 15), new DateOnly(2026, 7, 15), null, null, "Fatura Celesc",
+            Competencia: new DateOnly(2026, 6, 1));
+
+        var resultado = await sut.ImportarDeArquivoAsync(UserId, dados);
+
+        Assert.Equal(ImportacaoStatus.Criada, resultado.Status);
+        var invoice = await db.Invoices.SingleAsync();
+        Assert.Equal(new DateOnly(2026, 6, 1), invoice.ReferenceMonth);
+    }
+
+    [Fact]
+    public async Task ImportarDeArquivo_SemContaCorrespondente_NaoCriaFatura()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(CriarContaCelesc(db));
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        var dados = new FaturaExtraida("Vivo", 90m,
+            new DateOnly(2026, 2, 5), new DateOnly(2026, 2, 15), null, null, "Fatura Vivo telefonia");
+
+        var resultado = await sut.ImportarDeArquivoAsync(UserId, dados);
+
+        Assert.Equal(ImportacaoStatus.SemConta, resultado.Status);
+        Assert.Null(resultado.Invoice);
+        Assert.Equal(0, await db.Invoices.CountAsync());
+    }
+
+    [Fact]
+    public async Task ImportarDeArquivo_ClassificaPeloTextoDoPdf_QuandoSemFornecedor()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(CriarContaCelesc(db));
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        // Sem BillerName; o nome da conta ("Celesc") aparece no texto do PDF.
+        var dados = new FaturaExtraida(null, 150m,
+            new DateOnly(2026, 4, 5), new DateOnly(2026, 4, 15), null, null,
+            "COMPANHIA DE ENERGIA - CELESC DISTRIBUICAO S.A. - fatura mensal");
+
+        var resultado = await sut.ImportarDeArquivoAsync(UserId, dados);
+
+        Assert.Equal(ImportacaoStatus.Criada, resultado.Status);
+        Assert.Equal("Luz - Celesc", resultado.Conta);
+    }
+
+    [Fact]
+    public async Task ImportarDeArquivo_MesmaCompetencia_AtualizaSemDuplicar()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+        db.Bills.Add(CriarContaCelesc(db));
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        var dados = new FaturaExtraida("Celesc", 100m,
+            new DateOnly(2026, 5, 5), new DateOnly(2026, 5, 15), null, null, "Fatura Celesc");
+
+        var primeira = await sut.ImportarDeArquivoAsync(UserId, dados);
+        var segunda = await sut.ImportarDeArquivoAsync(UserId, dados with { Valor = 123m });
+
+        Assert.Equal(ImportacaoStatus.Criada, primeira.Status);
+        Assert.Equal(ImportacaoStatus.Atualizada, segunda.Status);
+        Assert.Equal(1, await db.Invoices.CountAsync());
+        Assert.Equal(123m, (await db.Invoices.SingleAsync()).Amount);
+    }
 }

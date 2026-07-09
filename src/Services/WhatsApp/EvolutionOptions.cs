@@ -22,6 +22,22 @@ public sealed class EvolutionOptions
     /// </summary>
     public string RecipientNumber { get; set; } = "120363039104311645@g.us";
 
+    /// <summary>
+    /// UserId dono das faturas importadas do grupo pelo webhook. Se vazio, o webhook cai no único usuário
+    /// cadastrado. Configure via Evolution:OwnerUserId.
+    /// </summary>
+    public string OwnerUserId { get; set; } = "";
+
+    /// <summary>
+    /// Segredo que a Evolution deve incluir na URL do webhook (/webhooks/evolution/{token}). Sem ele, o
+    /// endpoint recusa a chamada. Configure via Evolution:WebhookToken.
+    /// </summary>
+    public string WebhookToken { get; set; } = "";
+
+    /// <summary>Pasta onde os PDFs recebidos pelo grupo são salvos antes da ingestão.</summary>
+    public string DownloadDirectory { get; set; } =
+        Path.Combine(Path.GetTempPath(), "financeiro-faturas-whatsapp");
+
     /// <summary>True quando BaseUrl e ApiKey estão preenchidos (evita disparar sem configuração).</summary>
     public bool IsConfigured => !string.IsNullOrWhiteSpace(BaseUrl) && !string.IsNullOrWhiteSpace(ApiKey);
 }

@@ -75,8 +75,8 @@ public sealed class IngestaoFaturaService(
             return new ResultadoImportacao(null, ImportacaoStatus.SemConta, false, null);
         }
 
-        // Recua o início pela mesma data que define a competência (emissão, senão vencimento).
-        var dataCompetencia = dados.Emissao ?? dados.Vencimento;
+        // Recua o início pela mesma data que define a competência.
+        var dataCompetencia = DataCompetencia(dados);
         var ajustou = dataCompetencia is { } data && await RecuarInicioContaSeAnteriorAsync(bill, data, ct);
 
         var (invoice, criada) = await PersistirFaturaAsync(userId, dados, bill, ct);
@@ -85,6 +85,29 @@ public sealed class IngestaoFaturaService(
             criada ? ImportacaoStatus.Criada : ImportacaoStatus.Atualizada,
             ajustou,
             bill.Name);
+    }
+
+    /// <summary>
+    /// Registra a fatura já classificada (fluxo do webhook): sempre salva. Com conta, anexa e recua o início da
+    /// conta se a fatura for anterior; sem conta, cria avulsa para revisão posterior. Nada é descartado.
+    /// </summary>
+    public async Task<ResultadoImportacao> SalvarClassificadaAsync(
+        string userId, FaturaExtraida dados, Bill? conta, CancellationToken ct = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(userId);
+
+        var ajustou = false;
+        if (conta is not null && DataCompetencia(dados) is { } dataCompetencia)
+        {
+            ajustou = await RecuarInicioContaSeAnteriorAsync(conta, dataCompetencia, ct);
+        }
+
+        var (invoice, criada) = await PersistirFaturaAsync(userId, dados, conta, ct);
+        return new ResultadoImportacao(
+            invoice,
+            criada ? ImportacaoStatus.Criada : ImportacaoStatus.Atualizada,
+            ajustou,
+            conta?.Name);
     }
 
     /// <summary>Núcleo de persistência (dedupe por e-mail e por conta/competência); devolve se a fatura é nova.</summary>
@@ -110,8 +133,8 @@ public sealed class IngestaoFaturaService(
             }
         }
 
-        // Competência ~ mês de consumo: usa a emissão quando disponível, senão o vencimento.
-        var referencia = PrimeiroDiaDoMes(dados.Emissao ?? dados.Vencimento ?? DateOnly.FromDateTime(DateTime.Today));
+        // Competência: a referência (MM/AAAA do boleto) tem prioridade; senão, mês da emissão, senão do vencimento.
+        var referencia = PrimeiroDiaDoMes(DataCompetencia(dados) ?? DateOnly.FromDateTime(DateTime.Today));
 
         // 2) Dedupe por conta/competência.
         if (bill is not null)
@@ -271,12 +294,12 @@ public sealed class IngestaoFaturaService(
             .Where(b => b.UserId == userId && b.Active && b.DeletedAt == null)
             .ToListAsync(ct);
 
-        return ativas.FirstOrDefault(b =>
-            (!string.IsNullOrWhiteSpace(dados.BillerName)
-             && (b.BillerName.Contains(dados.BillerName, StringComparison.OrdinalIgnoreCase)
-                 || dados.BillerName.Contains(b.BillerName, StringComparison.OrdinalIgnoreCase)))
-            || b.MatchesEmail(dados.BillerName, dados.TextoBruto));
+        return ativas.FirstOrDefault(b => b.MatchesFatura(dados.BillerName, dados.TextoBruto));
     }
+
+    /// <summary>Data que define a competência: referência (MM/AAAA do boleto) &gt; emissão &gt; vencimento.</summary>
+    private static DateOnly? DataCompetencia(FaturaExtraida dados) =>
+        dados.Competencia ?? dados.Emissao ?? dados.Vencimento;
 
     private static DateOnly PrimeiroDiaDoMes(DateOnly data) => new(data.Year, data.Month, 1);
 

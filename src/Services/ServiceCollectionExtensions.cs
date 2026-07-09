@@ -28,9 +28,11 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(pdfOptions);
         services.AddSingleton<GmailServiceFactory>();
         services.AddSingleton<FaturaPdfExtractor>();
+        services.AddSingleton<IFaturaLeitorPdf>(sp => sp.GetRequiredService<FaturaPdfExtractor>());
         services.AddSingleton<ContaAgentFactory>();
         services.AddSingleton<AgentAccessor>();
         services.AddSingleton<FaturaLlmFallbackExtractor>();
+        services.AddSingleton<IFaturaClassificadorSupervisor, FaturaClassificadorSupervisor>();
 
         return services;
     }

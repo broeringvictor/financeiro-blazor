@@ -23,6 +23,9 @@ builder.Services.AddContaAgent(builder.Configuration);
 builder.Services.AddScoped<WebApp.Services.IngestaoFaturaService>();
 builder.Services.AddScoped<WebApp.Services.BuscaFaturaOrchestrator>();
 
+// Importação de faturas a partir de PDFs (webhook do grupo de WhatsApp): match + IA supervisora + always-save.
+builder.Services.AddScoped<WebApp.Services.ImportacaoFaturaOrchestrator>();
+
 // Gestão de categorias (árvore principal → subcategoria, CRUD e seed/backfill dos padrões).
 builder.Services.AddScoped<WebApp.Services.CategoryService>();
 
@@ -149,7 +152,13 @@ else
 }
 app.UseStatusCodePagesWithReExecute("/not-found", createScopeForStatusCodePages: true);
 
-app.UseHttpsRedirection();
+// Em dev não redireciona pra HTTPS: as chamadas server-to-server (ex.: webhook da Evolution rodando em
+// container para http://host.docker.internal:5078) quebrariam ao serem redirecionadas para o https com
+// certificado self-signed. Em produção o Caddy termina o TLS, então o redirect vale.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 
 app.UseAntiforgery();
@@ -164,6 +173,10 @@ app.MapRazorComponents<App>()
 app.MapAdditionalIdentityEndpoints();
 
 app.MapFaturaEndpoints();
+
+// Webhook de entrada da Evolution: PDFs do grupo → importação em background. Protegido por token na URL
+// (Evolution:WebhookToken); anônimo por design (a Evolution não autentica com cookie de sessão).
+app.MapEvolutionWebhook();
 
 // Só em dev: dispara o alerta de vencimentos na hora, sem esperar o horário diário (teste local).
 // POST http://localhost:<porta>/dev/alertas/vencimentos

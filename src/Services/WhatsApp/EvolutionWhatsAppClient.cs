@@ -1,12 +1,13 @@
 using System.Net.Http.Json;
+using System.Text.Json;
 using Microsoft.Extensions.Logging;
 
 namespace Services.WhatsApp;
 
 /// <summary>
-/// Cliente da Evolution API para envio de mensagens de WhatsApp (só outbound — alertas de
-/// vencimento). A autenticação é o header "apikey" com o segredo compartilhado; a rede interna
-/// (Aspire/Docker) garante que só o Services alcança a Evolution.
+/// Cliente da Evolution API: envio de mensagens (outbound — alertas de vencimento) e download de mídia
+/// (inbound — PDFs de boleto recebidos no grupo). A autenticação é o header "apikey" com o segredo
+/// compartilhado; a rede interna (Aspire/Docker) garante que só o Services alcança a Evolution.
 /// </summary>
 public sealed class EvolutionWhatsAppClient(
     HttpClient http,
@@ -58,4 +59,50 @@ public sealed class EvolutionWhatsAppClient(
     /// <summary>Envia para o destinatário padrão configurado em <see cref="EvolutionOptions.RecipientNumber"/>.</summary>
     public Task<bool> SendAlertAsync(string text, CancellationToken cancellationToken = default) =>
         SendTextAsync(options.RecipientNumber, text, cancellationToken);
+
+    /// <summary>
+    /// Baixa os bytes da mídia (ex.: PDF de boleto) de uma mensagem recebida, via
+    /// POST /chat/getBase64FromMediaMessage/{instance}. Retorna null se não configurada, sem mídia ou em erro.
+    /// </summary>
+    public async Task<byte[]?> BaixarMidiaBase64Async(string messageId, CancellationToken cancellationToken = default)
+    {
+        if (!options.IsConfigured || string.IsNullOrWhiteSpace(messageId))
+        {
+            return null;
+        }
+
+        using var request = new HttpRequestMessage(
+            HttpMethod.Post, $"chat/getBase64FromMediaMessage/{options.Instance}")
+        {
+            Content = JsonContent.Create(new { message = new { key = new { id = messageId } }, convertToMp4 = false }),
+        };
+        request.Headers.Add("apikey", options.ApiKey);
+
+        try
+        {
+            using var response = await http.SendAsync(request, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                var erro = await response.Content.ReadAsStringAsync(cancellationToken);
+                logger.LogError("Falha ao baixar mídia {MessageId} ({Status}): {Body}",
+                    messageId, (int)response.StatusCode, erro);
+                return null;
+            }
+
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+            using var doc = JsonDocument.Parse(body);
+            if (doc.RootElement.TryGetProperty("base64", out var b64) && b64.ValueKind == JsonValueKind.String)
+            {
+                return Convert.FromBase64String(b64.GetString()!);
+            }
+
+            logger.LogWarning("Resposta de mídia {MessageId} sem campo 'base64'.", messageId);
+            return null;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Erro ao baixar mídia {MessageId} da Evolution.", messageId);
+            return null;
+        }
+    }
 }

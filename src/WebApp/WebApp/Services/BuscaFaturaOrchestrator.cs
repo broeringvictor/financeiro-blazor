@@ -65,11 +65,13 @@ public sealed class BuscaFaturaOrchestrator(
         if (info.Valor is null || info.Vencimento is null)
         {
             var doCorpo = pdfExtractor.ExtrairDeTexto(detalhe.Corpo);
-            info = new FaturaInfo(
-                info.Valor ?? doCorpo.Valor,
-                info.Data ?? doCorpo.Data,
-                info.Vencimento ?? doCorpo.Vencimento,
-                info.Erro);
+            info = info with
+            {
+                Valor = info.Valor ?? doCorpo.Valor,
+                Data = info.Data ?? doCorpo.Data,
+                Vencimento = info.Vencimento ?? doCorpo.Vencimento,
+                Competencia = info.Competencia ?? doCorpo.Competencia,
+            };
         }
 
         // Fallback 2 (último recurso): regex não achou tudo — pede pro agente de IA ler o texto bruto.
@@ -86,11 +88,13 @@ public sealed class BuscaFaturaOrchestrator(
                     email.Id);
 
                 var doAgente = await llmFallback.ExtrairAsync(textoCombinado, ct);
-                info = new FaturaInfo(
-                    info.Valor ?? doAgente.Valor,
-                    info.Data ?? doAgente.Data,
-                    info.Vencimento ?? doAgente.Vencimento,
-                    doAgente.Erro ?? info.Erro);
+                info = info with
+                {
+                    Valor = info.Valor ?? doAgente.Valor,
+                    Data = info.Data ?? doAgente.Data,
+                    Vencimento = info.Vencimento ?? doAgente.Vencimento,
+                    Erro = doAgente.Erro ?? info.Erro,
+                };
             }
         }
 
@@ -107,7 +111,8 @@ public sealed class BuscaFaturaOrchestrator(
             Vencimento: info.Vencimento,
             SourceEmailMessageId: email.Id,
             PdfPath: pdfPath,
-            TextoBruto: detalhe.Corpo);
+            TextoBruto: detalhe.Corpo,
+            Competencia: info.Competencia);
 
         var invoice = await ingestao.UpsertAsync(userId, dados, ct);
         _logger.LogInformation("Fatura registrada: {Id} valor={Valor} venc={Venc}",
