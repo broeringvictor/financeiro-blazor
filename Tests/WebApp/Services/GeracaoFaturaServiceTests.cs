@@ -112,6 +112,32 @@ public class GeracaoFaturaServiceTests
     }
 
     [Fact]
+    public async Task GerarPendentes_FimPorQuantidadeDeMeses_CriaExatamenteNfaturas()
+    {
+        var (db, conn) = NovoContexto();
+        await using var _ = db;
+        using var __ = conn;
+
+        var categoria = new Category(UserId, "Parcelado", ETransactionTypes.Expense);
+        db.Categories.Add(categoria);
+
+        // Conta começando neste mês, com o fim definido por 11 parcelas (EndDate = data da 11ª ocorrência).
+        var hoje = DateTime.Today;
+        var inicio = new DateOnly(hoje.Year, hoje.Month, 10);
+        var fim = new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, inicio).OccurrenceDate(11);
+        var bill = new Bill(UserId, "Compra 11x", "Loja", categoria,
+            new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, inicio, fim));
+        db.Bills.Add(bill);
+        await db.SaveChangesAsync();
+        var sut = NovoServico(db);
+
+        var criadas = await sut.GerarPendentesAsync(UserId, bill);
+
+        Assert.Equal(11, criadas);
+        Assert.Equal(11, await db.Invoices.CountAsync());
+    }
+
+    [Fact]
     public async Task GerarPendentes_SemValorFixo_CriaComAmountZero()
     {
         var (db, conn) = NovoContexto();

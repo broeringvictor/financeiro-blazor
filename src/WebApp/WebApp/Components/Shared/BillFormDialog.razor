@@ -29,8 +29,22 @@
 
             <MudStack Row="true" Spacing="2">
                 <MudDatePicker @bind-Date="_startDate" Label="Início" Variant="Variant.Outlined" />
-                <MudDatePicker @bind-Date="_endDate" Label="Fim (opcional)" Variant="Variant.Outlined" Clearable="true" />
+                <MudSelect T="EndMode" @bind-Value="_endMode" Label="Fim" Variant="Variant.Outlined">
+                    <MudSelectItem Value="EndMode.Nenhum">Sem fim</MudSelectItem>
+                    <MudSelectItem Value="EndMode.Data">Por data</MudSelectItem>
+                    <MudSelectItem Value="EndMode.Meses">Por nº de meses</MudSelectItem>
+                </MudSelect>
             </MudStack>
+
+            @if (_endMode == EndMode.Data)
+            {
+                <MudDatePicker @bind-Date="_endDate" Label="Data fim" Variant="Variant.Outlined" Clearable="true" />
+            }
+            else if (_endMode == EndMode.Meses)
+            {
+                <MudNumericField @bind-Value="_months" Label="Quantidade de meses" Min="1" Max="600"
+                                 Variant="Variant.Outlined" HelperText="Ex.: 11 gera 11 faturas" />
+            }
 
             <MudNumericField @bind-Value="_fixedAmount" Label="Valor fixo (opcional)" Variant="Variant.Outlined"
                              Adornment="Adornment.Start" AdornmentText="R$" />
@@ -99,7 +113,17 @@
     private int _dueDay = 10;
     private DateTime? _startDate = DateTime.Today;
     private DateTime? _endDate;
+    private EndMode _endMode = EndMode.Nenhum;
+    private int _months = 12;
     private decimal? _fixedAmount;
+
+    /// <summary>Como o fim da recorrência é definido no formulário.</summary>
+    private enum EndMode
+    {
+        Nenhum,
+        Data,
+        Meses,
+    }
     private string? _searchQuery;
     private string? _pixKey;
     private bool _autoSearch;
@@ -126,6 +150,8 @@
         _dueDay = Bill.Recurrence.DueDay;
         _startDate = Bill.Recurrence.StartDate.ToDateTime(TimeOnly.MinValue);
         _endDate = Bill.Recurrence.EndDate?.ToDateTime(TimeOnly.MinValue);
+        // Um EndDate salvo é sempre uma data concreta; edição abre em "Por data" (não dá pra inferir "nº de meses").
+        _endMode = Bill.Recurrence.EndDate is null ? EndMode.Nenhum : EndMode.Data;
         _fixedAmount = Bill.FixedAmount;
         _searchQuery = Bill.SearchQuery;
         _pixKey = Bill.PixKey;
@@ -145,12 +171,30 @@
 
         try
         {
-            var recurrence = new RecurrenceRule(
-                _frequency,
-                _interval,
-                _dueDay,
-                DateOnly.FromDateTime(_startDate ?? DateTime.Today),
-                _endDate is { } end ? DateOnly.FromDateTime(end) : null);
+            var startDate = DateOnly.FromDateTime(_startDate ?? DateTime.Today);
+
+            DateOnly? endDate;
+            if (_endMode == EndMode.Data)
+            {
+                endDate = _endDate is { } end ? DateOnly.FromDateTime(end) : null;
+            }
+            else if (_endMode == EndMode.Meses)
+            {
+                if (_months < 1)
+                {
+                    _error = "Informe uma quantidade de meses maior que zero.";
+                    return;
+                }
+
+                // N meses/parcelas → data da N-ésima ocorrência (inclusive): a geração cria exatamente N faturas.
+                endDate = new RecurrenceRule(_frequency, _interval, _dueDay, startDate).OccurrenceDate(_months);
+            }
+            else
+            {
+                endDate = null;
+            }
+
+            var recurrence = new RecurrenceRule(_frequency, _interval, _dueDay, startDate, endDate);
 
             if (Bill is null)
             {

@@ -71,6 +71,21 @@ public sealed record RecurrenceRule
     /// <summary>Competência (1º dia do mês) esperada para a data informada.</summary>
     public DateOnly ExpectedReference(DateOnly today) => new(today.Year, today.Month, 1);
 
+    /// <summary>
+    /// Data de vencimento da <paramref name="ocorrencia"/>-ésima ocorrência (1-based), contada a partir do
+    /// início. Serve pra converter "quantidade de meses/parcelas" em <see cref="EndDate"/>: definir o fim como
+    /// <c>OccurrenceDate(N)</c> gera exatamente N faturas (a geração inclui ocorrências até o EndDate).
+    /// </summary>
+    public DateOnly OccurrenceDate(int ocorrencia)
+    {
+        if (ocorrencia < 1)
+        {
+            throw new ArgumentOutOfRangeException(nameof(ocorrencia), "A ocorrência deve ser maior ou igual a 1.");
+        }
+
+        return OccurrenceFromStart(ocorrencia - 1);
+    }
+
     private DateOnly OccurrenceFromStart(int index) => Frequency switch
     {
         ERecurrenceFrequency.Monthly => DueDateInMonth(StartDate.AddMonths(index * Interval)),

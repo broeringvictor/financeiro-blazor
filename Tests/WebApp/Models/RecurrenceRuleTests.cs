@@ -24,6 +24,23 @@ public class RecurrenceRuleTests
     }
 
     [Fact]
+    public void OccurrenceDate_Mensal_RetornaDataDaNesimaOcorrencia()
+    {
+        var regra = new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, Start);
+
+        Assert.Equal(Start, regra.OccurrenceDate(1));                 // 1ª = o próprio início
+        Assert.Equal(new DateOnly(2026, 11, 10), regra.OccurrenceDate(11)); // 11ª = início + 10 meses
+    }
+
+    [Fact]
+    public void OccurrenceDate_MenorQueUm_DeveLancar()
+    {
+        var regra = new RecurrenceRule(ERecurrenceFrequency.Monthly, 1, 10, Start);
+
+        Assert.Throws<ArgumentOutOfRangeException>(() => regra.OccurrenceDate(0));
+    }
+
+    [Fact]
     public void Create_ComEndDateAnteriorAoStart_DeveLancar()
     {
         Assert.Throws<ArgumentException>(() =>
